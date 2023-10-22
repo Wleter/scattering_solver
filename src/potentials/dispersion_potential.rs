@@ -8,9 +8,9 @@ pub struct DispersionPotential {
 }
 
 impl Potential for DispersionPotential {
-    type T = f64;
-    
-    fn value(&mut self, r: f64) -> f64 {
+    type Space = f64;
+
+    fn value(&mut self, r: &f64) -> f64 {
         self.d0 * r.powi(self.n) + self.v0
     }
 }

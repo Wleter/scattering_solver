@@ -1,10 +1,8 @@
+use num_traits::{One, Zero};
 use std::iter::Sum;
 
-use num_traits::Zero;
-
 /// Trait defining potential functionality
-pub trait Potential
-{
-    type T: Sum + Zero;
-    fn value(&mut self, r: f64) -> Self::T;
+pub trait Potential {
+    type Space: Sum + Zero + One;
+    fn value(&mut self, r: &f64) -> Self::Space;
 }
