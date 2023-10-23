@@ -1,34 +1,7 @@
-pub mod collision_params;
-pub mod numerovs;
-pub mod potentials;
-pub mod types;
-
-extern crate nalgebra;
-extern crate quantum;
-
-extern crate num_traits;
-use std::{
-    ops::{Add, Mul},
-    time::Instant,
-};
-
-use nalgebra::*;
-use num_traits::identities::One;
+use std::env;
 
 fn main() {
-    type Matrix9x9 = SMatrix<f64, 9, 9>;
-
-    generic_impl(&Matrix9x9::repeat(-2.0));
-    generic_impl(&5.0);
-}
-
-fn generic_impl<T>(value: &T) -> T
-where
-    T: SimdValue + std::fmt::Display + Copy + One + Mul<f64, Output = T> + Add<T, Output = T>,
-{
-    let identity = T::one();
-    let result = *value + (identity * 5.0);
-
-    println!("{}", result.to_string());
-    result
+    let mut args = env::args();
+    // get rid of environment variable
+    args.next();
 }

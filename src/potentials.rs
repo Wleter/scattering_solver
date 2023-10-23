@@ -1,5 +1,10 @@
 pub mod composite_potential;
+pub mod coupled_potential;
+pub mod coupling_factory;
 pub mod dispersion_potential;
-pub mod multi_chan_potential;
+pub mod function_potential;
+pub mod gaussian_coupling;
+pub mod multi_coupling;
+pub mod multi_diag_potential;
 pub mod potential;
 pub mod potential_factory;
