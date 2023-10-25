@@ -6,7 +6,8 @@ use crate::{
     collision_params::CollisionParams,
     numerovs::propagator::NumerovResult,
     potentials::potential::Potential,
-    utility::{asymptotic_bessel_j, asymptotic_bessel_n, bessel_j_ratio, bessel_n_ratio}, types::{FMatrix, CMatrix},
+    types::{CMatrix, FMatrix},
+    utility::{asymptotic_bessel_j, asymptotic_bessel_n, bessel_j_ratio, bessel_n_ratio},
 };
 
 use super::s_matrix::{HasSMatrix, OneChanSMatrix};
@@ -94,8 +95,8 @@ where
             .iter()
             .map(|val| (2.0 * mass * (energy - val.re).abs()).sqrt())
             .collect();
-        
-        let mut j_last = FMatrix::<N>::zeros(); 
+
+        let mut j_last = FMatrix::<N>::zeros();
         let mut j_prev_last = FMatrix::<N>::zeros();
         let mut n_last = FMatrix::<N>::zeros();
         let mut n_prev_last = FMatrix::<N>::zeros();
@@ -117,9 +118,7 @@ where
         let mut transform = CMatrix::<N>::zeros();
         transform.copy_from_slice(eigen_vecs.as_slice().unwrap());
 
-        // FMatrix::<N>::from_slice(eigen_vecs.as_slice().unwrap());
-
-        let wave_transf = eigen_vecs.t() * wave_ratio * eigen_vecs;
+        // let wave_transf = eigen_vecs.t() * wave_ratio * eigen_vecs;
 
         // let k_matrix = -(wave_ratio * j_prev_last - j_last) / (wave_ratio * n_prev_last - n_last);
 

@@ -9,7 +9,6 @@ use scattering_solver::{
     numerovs::{propagator::Numerov, ratio_numerov::RatioNumerov},
     observables::{observable_extractor::ObservableExtractor, s_matrix::HasSMatrix},
     potentials::{
-        composite_potential::CompositePotential, dispersion_potential::DispersionPotential,
         potential::Potential, potential_factory::create_lj,
     },
 };
@@ -33,7 +32,7 @@ impl ProblemSelector for SingleChannel {
 }
 
 impl SingleChannel {
-    fn create_collision_params() -> CollisionParams<CompositePotential<DispersionPotential>> {
+    fn create_collision_params() -> CollisionParams<impl Potential<Space = f64>> {
         let particle1 = create_atom("Li6").unwrap();
         let particle2 = create_atom("Li7").unwrap();
         let energy = EnergyUnit::Kelvin.to_au(1e-7);

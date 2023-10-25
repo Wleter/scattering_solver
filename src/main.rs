@@ -1,4 +1,3 @@
-use nalgebra::Matrix3;
 use problems::Problems;
 use quantum::problem_selector::{get_args, ProblemSelector};
 
