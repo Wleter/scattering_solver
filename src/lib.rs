@@ -1,7 +1,9 @@
 pub mod collision_params;
 pub mod numerovs;
+pub mod observables;
 pub mod potentials;
 pub mod types;
+pub mod utility;
 
 extern crate nalgebra;
 extern crate quantum;
@@ -15,10 +17,7 @@ mod tests {
 
     use crate::{
         collision_params::CollisionParams,
-        numerovs::{
-            propagator::{Numerov, NumerovResult},
-            ratio_numerov::RatioNumerov,
-        },
+        numerovs::{propagator::Numerov, ratio_numerov::RatioNumerov},
         potentials::{
             multi_diag_potential::MultiDiagPotential, potential::Potential,
             potential_factory::create_lj,
@@ -56,16 +55,14 @@ mod tests {
         let atom2 = create_atom("Li7").unwrap();
         let particles = Particles::new_pair(atom1, atom2, EnergyUnit::Kelvin.to_au(1e-7));
 
-        let collision_params = CollisionParams::new(particles, potential);
-        let mut numerov = RatioNumerov::new(collision_params);
+        let mut collision_params = CollisionParams::new(particles, potential);
+        let mut numerov = RatioNumerov::new(&mut collision_params);
         numerov.prepare(7.0, (1.1, 1.2));
         numerov.propagate_to(100.0);
-        let wave_ratio = numerov.wave_ratio();
-        let r = numerov.r();
-        let dr = numerov.dr();
+        let result = numerov.result();
 
-        print!("r: {:?}\n", r);
-        print!("dr: {:?}\n", dr);
-        print!("wave_ratio: {:?}\n", wave_ratio);
+        print!("r: {:?}\n", result.r_last);
+        print!("dr: {:?}\n", result.dr);
+        print!("wave_ratio: {:?}\n", result.wave_ratio);
     }
 }

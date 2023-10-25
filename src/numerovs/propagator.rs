@@ -17,14 +17,15 @@ pub(super) trait MultiStep<P: Potential> {
     fn variable_step(&mut self);
 }
 
-/// A trait for the result of a Numerov propagation
-pub trait NumerovResult<T> {
-    /// Returns the current position in the propagation
-    fn r(&self) -> f64;
-    /// Returns the current step size
-    fn dr(&self) -> f64;
-    /// Returns ratio of wave function on position r and r - dr
-    fn wave_ratio(&self) -> &T;
+/// Struct storing the result of a Numerov propagation
+#[derive(Debug, Clone)]
+pub struct NumerovResult<T> {
+    /// last position in the propagation
+    pub r_last: f64,
+    /// last step size
+    pub dr: f64,
+    /// Ratio of wave function on position r and r - dr
+    pub wave_ratio: T,
 }
 
 /// A trait for Numerov propagator
@@ -41,7 +42,9 @@ pub trait Numerov<T, P: Potential<Space = T>> {
     /// Propagate the wave function until position is larger than r
     /// with a initial value of a wave function `wave_init`.
     /// [`prepare`] must be called before calling this method.
-    /// Return the list of a wave function values
-    /// and the corresponding positions
-    fn propagate_values(&mut self, r: f64, wave_init: T) -> (Vec<T>, Vec<f64>);
+    /// Return the list of positions and the corresponding wave function values
+    fn propagate_values(&mut self, r: f64, wave_init: T) -> (Vec<f64>, Vec<T>);
+
+    /// Returns the result of the propagation
+    fn result(&self) -> NumerovResult<T>;
 }

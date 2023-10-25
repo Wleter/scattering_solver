@@ -13,11 +13,11 @@ use super::propagator::{MultiStep, Numerov, NumerovResult};
 
 /// Numerov method propagating ratios of the wave function,
 /// implementing Numerov and NumerovResult trait for single channel and multi channel cases
-pub struct RatioNumerov<T, P>
+pub struct RatioNumerov<'a, T, P>
 where
     P: Potential<Space = T>,
 {
-    pub collision_params: CollisionParams<P>,
+    pub collision_params: &'a mut CollisionParams<P>,
     energy: f64,
     mass: f64,
 
@@ -35,13 +35,13 @@ where
     doubled_step_before: bool,
 }
 
-impl<T, P> RatioNumerov<T, P>
+impl<'a, T, P> RatioNumerov<'a, T, P>
 where
     T: Zero + One,
     P: Potential<Space = T>,
 {
     /// Creates a new instance of the RatioNumerov struct
-    pub fn new(collision_params: CollisionParams<P>) -> Self {
+    pub fn new(collision_params: &'a mut CollisionParams<P>) -> Self {
         let mass = collision_params.particles.red_mass();
         let energy = collision_params.particles.internals.get_value("energy");
 
@@ -66,25 +66,7 @@ where
     }
 }
 
-impl<T, P> NumerovResult<T> for RatioNumerov<T, P>
-where
-    T: Zero + One,
-    P: Potential<Space = T>,
-{
-    fn r(&self) -> f64 {
-        self.r
-    }
-
-    fn dr(&self) -> f64 {
-        self.dr
-    }
-
-    fn wave_ratio(&self) -> &T {
-        &self.psi1
-    }
-}
-
-impl<P> RatioNumerov<f64, P>
+impl<'a, P> RatioNumerov<'a, f64, P>
 where
     P: Potential<Space = f64>,
 {
@@ -95,7 +77,7 @@ where
     }
 }
 
-impl<P> MultiStep<P> for RatioNumerov<f64, P>
+impl<'a, P> MultiStep<P> for RatioNumerov<'a, f64, P>
 where
     P: Potential<Space = f64>,
 {
@@ -104,7 +86,7 @@ where
 
         let step_size = self.recommended_step_size();
 
-        if step_size > 2.0 * self.dr && !self.doubled_step_before {
+        if step_size > 2.0 * self.dr.abs() && !self.doubled_step_before {
             self.doubled_step_before = true;
             self.double_step();
             self.current_g_func = self.g_func(&(self.r + self.dr));
@@ -158,14 +140,14 @@ where
     }
 
     fn recommended_step_size(&mut self) -> f64 {
-        let lambda = 2.0 * PI / (self.current_g_func).abs().sqrt();
+        let lambda = 2.0 * PI / self.current_g_func.abs().sqrt();
         let lambda_step_ratio = 500.0;
 
         lambda / lambda_step_ratio
     }
 }
 
-impl<P> Numerov<f64, P> for RatioNumerov<f64, P>
+impl<'a, P> Numerov<f64, P> for RatioNumerov<'a, f64, P>
 where
     P: Potential<Space = f64>,
 {
@@ -203,7 +185,7 @@ where
         while self.r < r {
             self.variable_step();
 
-            psi_actual = self.wave_ratio() * psi_actual;
+            psi_actual = self.psi1 * psi_actual;
 
             if (self.r - positions.last().unwrap()) > r_push_step {
                 positions.push(self.r);
@@ -211,11 +193,19 @@ where
             }
         }
 
-        (wave_functions, positions)
+        (positions, wave_functions)
+    }
+
+    fn result(&self) -> NumerovResult<f64> {
+        NumerovResult {
+            r_last: self.r,
+            dr: self.dr,
+            wave_ratio: self.psi1,
+        }
     }
 }
 
-impl<const N: usize, P> RatioNumerov<FMatrix<N>, P>
+impl<'a, const N: usize, P> RatioNumerov<'a, FMatrix<N>, P>
 where
     P: Potential<Space = FMatrix<N>>,
 {
@@ -225,7 +215,7 @@ where
     }
 }
 
-impl<const N: usize, P> MultiStep<P> for RatioNumerov<FMatrix<N>, P>
+impl<'a, const N: usize, P> MultiStep<P> for RatioNumerov<'a, FMatrix<N>, P>
 where
     P: Potential<Space = FMatrix<N>>,
 {
@@ -302,7 +292,7 @@ where
     }
 }
 
-impl<const N: usize, P> Numerov<FMatrix<N>, P> for RatioNumerov<FMatrix<N>, P>
+impl<'a, const N: usize, P> Numerov<FMatrix<N>, P> for RatioNumerov<'a, FMatrix<N>, P>
 where
     P: Potential<Space = FMatrix<N>>,
 {
@@ -326,7 +316,7 @@ where
         }
     }
 
-    fn propagate_values(&mut self, r: f64, wave_init: FMatrix<N>) -> (Vec<FMatrix<N>>, Vec<f64>) {
+    fn propagate_values(&mut self, r: f64, wave_init: FMatrix<N>) -> (Vec<f64>, Vec<FMatrix<N>>) {
         let max_capacity: usize = 1000;
         let r_push_step = (r - self.r) / max_capacity as f64;
 
@@ -340,7 +330,7 @@ where
         while self.r < r {
             self.variable_step();
 
-            psi_actual = self.wave_ratio() * psi_actual;
+            psi_actual = self.psi1 * psi_actual;
 
             if (self.r - positions.last().unwrap()) > r_push_step {
                 positions.push(self.r);
@@ -348,11 +338,19 @@ where
             }
         }
 
-        (wave_functions, positions)
+        (positions, wave_functions)
+    }
+
+    fn result(&self) -> NumerovResult<FMatrix<N>> {
+        NumerovResult {
+            r_last: self.r,
+            dr: self.dr,
+            wave_ratio: self.psi1,
+        }
     }
 }
 
-impl<const N: usize, P> RatioNumerov<CMatrix<N>, P>
+impl<'a, const N: usize, P> RatioNumerov<'a, CMatrix<N>, P>
 where
     P: Potential<Space = CMatrix<N>>,
 {
@@ -363,7 +361,7 @@ where
     }
 }
 
-impl<const N: usize, P> MultiStep<P> for RatioNumerov<CMatrix<N>, P>
+impl<'a, const N: usize, P> MultiStep<P> for RatioNumerov<'a, CMatrix<N>, P>
 where
     P: Potential<Space = CMatrix<N>>,
 {
@@ -445,7 +443,7 @@ where
     }
 }
 
-impl<const N: usize, P> Numerov<CMatrix<N>, P> for RatioNumerov<CMatrix<N>, P>
+impl<'a, const N: usize, P> Numerov<CMatrix<N>, P> for RatioNumerov<'a, CMatrix<N>, P>
 where
     P: Potential<Space = CMatrix<N>>,
 {
@@ -471,7 +469,7 @@ where
         }
     }
 
-    fn propagate_values(&mut self, r: f64, wave_init: CMatrix<N>) -> (Vec<CMatrix<N>>, Vec<f64>) {
+    fn propagate_values(&mut self, r: f64, wave_init: CMatrix<N>) -> (Vec<f64>, Vec<CMatrix<N>>) {
         let max_capacity: usize = 1000;
         let r_push_step = (r - self.r) / max_capacity as f64;
 
@@ -485,7 +483,7 @@ where
         while self.r < r {
             self.variable_step();
 
-            psi_actual = self.wave_ratio() * psi_actual;
+            psi_actual = self.psi1 * psi_actual;
 
             if (self.r - positions.last().unwrap()) > r_push_step {
                 positions.push(self.r);
@@ -493,6 +491,14 @@ where
             }
         }
 
-        (wave_functions, positions)
+        (positions, wave_functions)
+    }
+
+    fn result(&self) -> NumerovResult<CMatrix<N>> {
+        NumerovResult {
+            r_last: self.r,
+            dr: self.dr,
+            wave_ratio: self.psi1,
+        }
     }
 }
