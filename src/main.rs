@@ -1,7 +1,9 @@
-use std::env;
+use nalgebra::Matrix3;
+use problems::Problems;
+use quantum::problem_selector::{get_args, ProblemSelector};
+
+pub mod problems;
 
 fn main() {
-    let mut args = env::args();
-    // get rid of environment variable
-    args.next();
+    Problems::select(&mut get_args());
 }

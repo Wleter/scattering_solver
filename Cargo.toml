@@ -7,6 +7,8 @@ edition = "2021"
 
 [dependencies]
 quantum ={ path = "../quantum" }
-nalgebra = { version = "0.32.1", features = ["rand"] }
-num-traits = "0.2.15"
-num = "0.4.0"
+nalgebra = { version = "0.32.3" }
+num-traits = "0.2.17"
+num = "0.4.1"
+ndarray = "0.15.6"
+ndarray-linalg = "0.16.0"
