@@ -4,6 +4,7 @@ pub mod observables;
 pub mod potentials;
 pub mod types;
 pub mod utility;
+pub mod asymptotic_states;
 
 extern crate nalgebra;
 extern crate quantum;
