@@ -1,4 +1,4 @@
-use crate::potentials::potential::Potential;
+use crate::{boundary::Boundary, potentials::potential::Potential};
 
 pub(super) trait MultiStep<P: Potential> {
     /// Performs a step with the same step size
@@ -18,7 +18,7 @@ pub(super) trait MultiStep<P: Potential> {
 }
 
 /// Struct storing the result of a Numerov propagation
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct NumerovResult<T> {
     /// last position in the propagation
     pub r_last: f64,
@@ -33,7 +33,7 @@ pub trait Numerov<T, P: Potential<Space = T>> {
     /// Prepares the propagator for a new propagation
     /// starting from position r and with a boundary condition
     /// `psi(r) = boundary.0` and `psi(r - dr) = boundary.1`
-    fn prepare(&mut self, r: f64, boundary: (T, T));
+    fn prepare(&mut self, boundary: &Boundary<T>);
 
     /// Propagate the wave function until position is larger than r.
     /// [`prepare`] must be called before calling this method.

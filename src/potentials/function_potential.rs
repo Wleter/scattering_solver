@@ -25,7 +25,7 @@ where
     type Space = T;
 
     #[inline(always)]
-    fn value(&mut self, r: &f64) -> Self::Space {
+    fn value(&self, r: &f64) -> Self::Space {
         (self.function)(r)
     }
 }

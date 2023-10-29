@@ -1,16 +1,21 @@
-use std::{collections::VecDeque, time::Instant};
+use std::{collections::VecDeque, rc::Rc, time::Instant};
 
 use quantum::{
     particle_factory::create_atom, particles::Particles, problem_selector::ProblemSelector,
-    saving::save_vec, units::energy_units::EnergyUnit,
+    saving::save_param_change, units::energy_units::EnergyUnit,
 };
 use scattering_solver::{
+    asymptotic_states::AsymptoticStates,
+    boundary::Boundary,
     collision_params::CollisionParams,
+    defaults::MultiDefaults,
     numerovs::{propagator::Numerov, ratio_numerov::RatioNumerov},
     observables::{observable_extractor::ObservableExtractor, s_matrix::HasSMatrix},
     potentials::{
-        potential::Potential, potential_factory::create_lj, gaussian_coupling::GaussianCoupling, coupling_factory::couple_neighbors,
-    }, types::FMatrix,
+        coupling_factory::couple_neighbors, gaussian_coupling::GaussianCoupling,
+        potential::Potential, potential_factory::create_lj,
+    },
+    types::FMatrix,
 };
 
 pub struct TwoChannel {}
@@ -51,23 +56,23 @@ impl TwoChannel {
         println!("Calculating wave function...");
         let start = Instant::now();
 
-        let mut collision_params = Self::create_collision_params();
-        let mut numerov = RatioNumerov::new(&mut collision_params);
+        let collision_params = Rc::new(Self::create_collision_params());
+        let mut numerov = RatioNumerov::new(collision_params, 1.0);
 
         let preparation = start.elapsed();
 
-        numerov.prepare(6.5, (FMatrix::<2>::from_diagonal_element(1.1), FMatrix::<2>::from_diagonal_element(1.11)));
-        let (rs, waves) = numerov.propagate_values(50.0, FMatrix::<2>::from_diagonal_element(1e-50));
+        numerov.prepare(&Boundary::new(6.5, MultiDefaults::boundary()));
+
+        let (rs, waves) = numerov.propagate_values(50.0, MultiDefaults::init_wave());
         let propagation = start.elapsed() - preparation;
 
         let header = vec!["position", "channel 1", "channel 2"];
-        let data = rs
+        let data = waves
             .iter()
-            .zip(waves.iter())
-            .map(|(r, wave)| vec![*r, wave[(0, 0)], wave[(1, 1)]])
+            .map(|wave| vec![wave[(0, 0)], wave[(0, 1)]])
             .collect();
 
-        save_vec("two_chan/wave_function", data, header).unwrap();
+        save_param_change("two_chan/wave_function", rs, data, header).unwrap();
 
         println!("Preparation time: {:?} μs", preparation.as_micros());
         println!("Propagation time: {:?} μs", propagation.as_micros());
@@ -77,26 +82,34 @@ impl TwoChannel {
         println!("Calculating scattering length...");
         let start = Instant::now();
 
-        let mut collision_params = Self::create_collision_params();
-        let mut numerov = RatioNumerov::new(&mut collision_params);
+        let collision_params = Rc::new(Self::create_collision_params());
+        let mut numerov = RatioNumerov::new(collision_params.clone(), 1.0);
 
         let preparation = start.elapsed();
 
-        numerov.prepare(6.5, (FMatrix::<2>::from_diagonal_element(1.1), FMatrix::<2>::from_diagonal_element(1.11)));
+        numerov.prepare(&Boundary::new(6.5, MultiDefaults::boundary()));
         numerov.propagate_to(1000.0);
         let result = numerov.result();
 
         let propagation = start.elapsed() - preparation;
 
-        let mut observable_extractor = ObservableExtractor::new(&mut collision_params, result);
-        // let s_matrix = observable_extractor.calculate_s_matrix(0);
-        // let scattering_length = s_matrix.get_scattering_length(0);
+        let mut observable_extractor = ObservableExtractor::new(collision_params.clone(), result);
+        let closed_channel = EnergyUnit::Kelvin.to_au(1.0);
+
+        let asymptotic_states = AsymptoticStates {
+            energies: [0.0, closed_channel],
+            eigenvectors: FMatrix::<2>::identity(),
+            entrance_channel: 0,
+        };
+
+        let s_matrix = observable_extractor.calculate_s_matrix(0, asymptotic_states);
+        let scattering_length = s_matrix.get_scattering_length(0);
 
         let extraction = start.elapsed() - preparation - propagation;
 
         println!("Preparation time: {:?} μs", preparation.as_micros());
         println!("Propagation time: {:?} μs", propagation.as_micros());
         println!("Extraction time: {:?} μs", extraction.as_micros());
-        // println!("Scattering length: {:.2e} bohr", scattering_length);
+        println!("Scattering length: {:.2e} bohr", scattering_length);
     }
 }

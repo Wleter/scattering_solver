@@ -1,16 +1,22 @@
-use std::{collections::VecDeque, time::Instant};
+use std::{collections::VecDeque, rc::Rc, time::Instant};
 
 use quantum::{
-    particle_factory::create_atom, particles::Particles, problem_selector::ProblemSelector,
-    saving::save_vec, units::energy_units::EnergyUnit,
+    particle_factory::create_atom,
+    particles::Particles,
+    problem_selector::ProblemSelector,
+    saving::{save_param_change, save_param_change_complex},
+    units::energy_units::EnergyUnit,
 };
 use scattering_solver::{
+    boundary::Boundary,
     collision_params::CollisionParams,
+    defaults::SingleDefaults,
     numerovs::{propagator::Numerov, ratio_numerov::RatioNumerov},
-    observables::{observable_extractor::ObservableExtractor, s_matrix::HasSMatrix},
-    potentials::{
-        potential::Potential, potential_factory::create_lj,
+    observables::{
+        dependencies::Dependencies, observable_extractor::ObservableExtractor, s_matrix::HasSMatrix,
     },
+    potentials::{potential::Potential, potential_factory::create_lj},
+    utility::linspace,
 };
 
 pub struct SingleChannel {}
@@ -19,13 +25,20 @@ impl ProblemSelector for SingleChannel {
     const NAME: &'static str = "single channel";
 
     fn list() -> Vec<&'static str> {
-        vec!["wave function", "scattering length"]
+        vec![
+            "wave function",
+            "scattering length",
+            "propagation distance",
+            "mass scaling",
+        ]
     }
 
     fn methods(number: &str, _args: &mut VecDeque<String>) {
         match number {
             "0" => Self::wave_function(),
             "1" => Self::scattering_length(),
+            "2" => Self::propagation_distance(),
+            "3" => Self::mass_scaling(),
             _ => println!("No method found for number {}", number),
         }
     }
@@ -47,13 +60,13 @@ impl SingleChannel {
         println!("Calculating wave function...");
         let start = Instant::now();
 
-        let mut collision_params = Self::create_collision_params();
-        let mut numerov = RatioNumerov::new(&mut collision_params);
+        let collision_params = Rc::new(Self::create_collision_params());
+        let mut numerov = RatioNumerov::new(collision_params, 1.0);
 
         let preparation = start.elapsed();
 
-        numerov.prepare(6.5, (1.1, 1.11));
-        let (rs, waves) = numerov.propagate_values(100.0, 1e-50);
+        numerov.prepare(&Boundary::new(6.5, SingleDefaults::boundary()));
+        let (rs, waves) = numerov.propagate_values(100.0, SingleDefaults::init_wave());
         let propagation = start.elapsed() - preparation;
 
         let potential_values: Vec<f64> = rs
@@ -62,14 +75,13 @@ impl SingleChannel {
             .collect();
 
         let header = vec!["position", "wave function", "potential"];
-        let data = rs
+        let data = waves
             .iter()
-            .zip(waves.iter())
             .zip(potential_values.iter())
-            .map(|((r, wave), v)| vec![*r, *wave, EnergyUnit::Au.to_kelvin(*v)])
+            .map(|(wave, v)| vec![*wave, EnergyUnit::Au.to_kelvin(*v)])
             .collect();
 
-        save_vec("single_chan/wave_function", data, header).unwrap();
+        save_param_change("single_chan/wave_function", rs, data, header).unwrap();
 
         println!("Preparation time: {:?} μs", preparation.as_micros());
         println!("Propagation time: {:?} μs", propagation.as_micros());
@@ -79,19 +91,19 @@ impl SingleChannel {
         println!("Calculating scattering length...");
         let start = Instant::now();
 
-        let mut collision_params = Self::create_collision_params();
-        let mut numerov = RatioNumerov::new(&mut collision_params);
+        let collision_params = Rc::new(Self::create_collision_params());
+        let mut numerov = RatioNumerov::new(collision_params.clone(), 1.0);
 
         let preparation = start.elapsed();
 
-        numerov.prepare(6.5, (1.1, 1.11));
+        numerov.prepare(&Boundary::new(6.5, SingleDefaults::boundary()));
         numerov.propagate_to(1000.0);
         let result = numerov.result();
 
         let propagation = start.elapsed() - preparation;
 
-        let mut observable_extractor = ObservableExtractor::new(&mut collision_params, result);
-        let s_matrix = observable_extractor.calculate_s_matrix(0);
+        let mut observable_extractor = ObservableExtractor::new(collision_params.clone(), result);
+        let s_matrix = observable_extractor.calculate_s_matrix(0, 0.0);
         let scattering_length = s_matrix.get_scattering_length(0);
 
         let extraction = start.elapsed() - preparation - propagation;
@@ -100,5 +112,58 @@ impl SingleChannel {
         println!("Propagation time: {:?} μs", propagation.as_micros());
         println!("Extraction time: {:?} μs", extraction.as_micros());
         println!("Scattering length: {:.2e} bohr", scattering_length);
+    }
+
+    fn propagation_distance() {
+        println!("Calculating scattering length distance dependence...");
+
+        let collision_params = Self::create_collision_params();
+
+        let distances = linspace(100.0, 1e4, 1000);
+        let (rs, scatterings) = Dependencies::propagation_distance(
+            distances,
+            collision_params,
+            Boundary::new(6.5, SingleDefaults::boundary()),
+        );
+
+        let header = vec![
+            "distance",
+            "scattering length real",
+            "scattering length imag",
+        ];
+
+        save_param_change_complex("single_chan/propagation_distance", rs, scatterings, header)
+            .unwrap();
+    }
+
+    fn mass_scaling() {
+        println!("Calculating scattering length vs mass scaling...");
+
+        let collision_params = Self::create_collision_params();
+
+        let scalings = linspace(0.8, 1.2, 1000);
+        fn change_function(
+            scaling: &f64,
+            params: &mut CollisionParams<impl Potential<Space = f64>>,
+        ) {
+            params.particles.scale_red_mass(*scaling);
+        }
+
+        let scatterings = Dependencies::params_change(
+            &scalings,
+            change_function,
+            collision_params,
+            Boundary::new(6.5, SingleDefaults::boundary()),
+            1e4,
+        );
+
+        let header = vec![
+            "mass scale factor",
+            "scattering length real",
+            "scattering length imag",
+        ];
+
+        save_param_change_complex("single_chan/mass_scaling", scalings, scatterings, header)
+            .unwrap();
     }
 }

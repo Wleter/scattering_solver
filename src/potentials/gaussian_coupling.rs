@@ -23,7 +23,7 @@ impl Potential for GaussianCoupling {
     type Space = f64;
 
     #[inline(always)]
-    fn value(&mut self, r: &f64) -> f64 {
+    fn value(&self, r: &f64) -> f64 {
         self.strength * (-((r - self.center) / self.width).powi(2) / 2.0).exp()
     }
 }

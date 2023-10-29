@@ -24,7 +24,7 @@ impl<P: Potential> Potential for CompositePotential<P> {
     type Space = P::Space;
 
     #[inline(always)]
-    fn value(&mut self, r: &f64) -> Self::Space {
-        self.potentials.iter_mut().map(|p| p.value(r)).sum()
+    fn value(&self, r: &f64) -> Self::Space {
+        self.potentials.iter().map(|p| p.value(r)).sum()
     }
 }

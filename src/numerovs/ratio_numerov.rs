@@ -1,9 +1,10 @@
-use std::f64::consts::PI;
+use std::{f64::consts::PI, rc::Rc};
 
 use num::complex::Complex64;
 use num_traits::{One, Zero};
 
 use crate::{
+    boundary::Boundary,
     collision_params::CollisionParams,
     potentials::potential::Potential,
     types::{CMatrix, FMatrix},
@@ -13,11 +14,11 @@ use super::propagator::{MultiStep, Numerov, NumerovResult};
 
 /// Numerov method propagating ratios of the wave function,
 /// implementing Numerov and NumerovResult trait for single channel and multi channel cases
-pub struct RatioNumerov<'a, T, P>
+pub struct RatioNumerov<T, P>
 where
     P: Potential<Space = T>,
 {
-    pub collision_params: &'a mut CollisionParams<P>,
+    pub collision_params: Rc<CollisionParams<P>>,
     energy: f64,
     mass: f64,
 
@@ -32,16 +33,19 @@ where
 
     identity: T,
     current_g_func: T,
+
     doubled_step_before: bool,
+    is_set_up: bool,
+    step_factor: f64,
 }
 
-impl<'a, T, P> RatioNumerov<'a, T, P>
+impl<T, P> RatioNumerov<T, P>
 where
     T: Zero + One,
     P: Potential<Space = T>,
 {
     /// Creates a new instance of the RatioNumerov struct
-    pub fn new(collision_params: &'a mut CollisionParams<P>) -> Self {
+    pub fn new(collision_params: Rc<CollisionParams<P>>, step_factor: f64) -> Self {
         let mass = collision_params.particles.red_mass();
         let energy = collision_params.particles.internals.get_value("energy");
 
@@ -61,12 +65,15 @@ where
 
             identity: T::one(),
             current_g_func: T::zero(),
+
             doubled_step_before: false,
+            is_set_up: false,
+            step_factor,
         }
     }
 }
 
-impl<'a, P> RatioNumerov<'a, f64, P>
+impl<P> RatioNumerov<f64, P>
 where
     P: Potential<Space = f64>,
 {
@@ -77,7 +84,7 @@ where
     }
 }
 
-impl<'a, P> MultiStep<P> for RatioNumerov<'a, f64, P>
+impl<P> MultiStep<P> for RatioNumerov<f64, P>
 where
     P: Potential<Space = f64>,
 {
@@ -143,35 +150,39 @@ where
         let lambda = 2.0 * PI / self.current_g_func.abs().sqrt();
         let lambda_step_ratio = 500.0;
 
-        lambda / lambda_step_ratio
+        self.step_factor * lambda / lambda_step_ratio
     }
 }
 
-impl<'a, P> Numerov<f64, P> for RatioNumerov<'a, f64, P>
+impl<P> Numerov<f64, P> for RatioNumerov<f64, P>
 where
     P: Potential<Space = f64>,
 {
-    fn prepare(&mut self, r: f64, boundary: (f64, f64)) {
-        self.r = r;
+    fn prepare(&mut self, boundary: &Boundary<f64>) {
+        self.r = boundary.r_start;
 
-        self.current_g_func = self.g_func(&r);
+        self.current_g_func = self.g_func(&boundary.r_start);
         self.dr = self.recommended_step_size();
 
-        self.psi1 = boundary.0;
-        self.psi2 = boundary.1;
+        self.psi1 = boundary.start_value;
+        self.psi2 = boundary.before_value;
 
         self.f3 = 1.0 + self.dr * self.dr * self.g_func(&(self.r - 2.0 * self.dr)) / 12.0;
         self.f2 = 1.0 + self.dr * self.dr * self.g_func(&(self.r - self.dr)) / 12.0;
         self.f1 = 1.0 + self.dr * self.dr * self.current_g_func / 12.0;
+
+        self.is_set_up = true;
     }
 
     fn propagate_to(&mut self, r: f64) {
+        assert!(self.is_set_up, "Numerov method not set up");
         while self.r < r {
             self.variable_step();
         }
     }
 
     fn propagate_values(&mut self, r: f64, wave_init: f64) -> (Vec<f64>, Vec<f64>) {
+        assert!(self.is_set_up, "Numerov method not set up");
         let max_capacity: usize = 1000;
         let r_push_step = (r - self.r) / max_capacity as f64;
 
@@ -205,7 +216,7 @@ where
     }
 }
 
-impl<'a, const N: usize, P> RatioNumerov<'a, FMatrix<N>, P>
+impl<const N: usize, P> RatioNumerov<FMatrix<N>, P>
 where
     P: Potential<Space = FMatrix<N>>,
 {
@@ -215,7 +226,7 @@ where
     }
 }
 
-impl<'a, const N: usize, P> MultiStep<P> for RatioNumerov<'a, FMatrix<N>, P>
+impl<const N: usize, P> MultiStep<P> for RatioNumerov<FMatrix<N>, P>
 where
     P: Potential<Space = FMatrix<N>>,
 {
@@ -288,35 +299,39 @@ where
         let lambda = 2.0 * PI / max_g_func_val.sqrt();
         let lambda_step_ratio = 500.0;
 
-        lambda / lambda_step_ratio
+        self.step_factor * lambda / lambda_step_ratio
     }
 }
 
-impl<'a, const N: usize, P> Numerov<FMatrix<N>, P> for RatioNumerov<'a, FMatrix<N>, P>
+impl<const N: usize, P> Numerov<FMatrix<N>, P> for RatioNumerov<FMatrix<N>, P>
 where
     P: Potential<Space = FMatrix<N>>,
 {
-    fn prepare(&mut self, r: f64, boundary: (FMatrix<N>, FMatrix<N>)) {
-        self.r = r;
+    fn prepare(&mut self, boundary: &Boundary<FMatrix<N>>) {
+        self.r = boundary.r_start;
 
-        self.current_g_func = self.g_func(&r);
+        self.current_g_func = self.g_func(&boundary.r_start);
         self.dr = self.recommended_step_size();
 
-        self.psi1 = boundary.0;
-        self.psi2 = boundary.1;
+        self.psi1 = boundary.start_value;
+        self.psi2 = boundary.before_value;
 
         self.f3 = self.identity + self.dr * self.dr * self.g_func(&(self.r - 2.0 * self.dr)) / 12.0;
         self.f2 = self.identity + self.dr * self.dr * self.g_func(&(self.r - self.dr)) / 12.0;
         self.f1 = self.identity + self.dr * self.dr * self.current_g_func / 12.0;
+
+        self.is_set_up = true;
     }
 
     fn propagate_to(&mut self, r: f64) {
+        assert!(self.is_set_up, "Numerov method not set up");
         while self.r < r {
             self.variable_step();
         }
     }
 
     fn propagate_values(&mut self, r: f64, wave_init: FMatrix<N>) -> (Vec<f64>, Vec<FMatrix<N>>) {
+        assert!(self.is_set_up, "Numerov method not set up");
         let max_capacity: usize = 1000;
         let r_push_step = (r - self.r) / max_capacity as f64;
 
@@ -350,7 +365,7 @@ where
     }
 }
 
-impl<'a, const N: usize, P> RatioNumerov<'a, CMatrix<N>, P>
+impl<const N: usize, P> RatioNumerov<CMatrix<N>, P>
 where
     P: Potential<Space = CMatrix<N>>,
 {
@@ -361,7 +376,7 @@ where
     }
 }
 
-impl<'a, const N: usize, P> MultiStep<P> for RatioNumerov<'a, CMatrix<N>, P>
+impl<const N: usize, P> MultiStep<P> for RatioNumerov<CMatrix<N>, P>
 where
     P: Potential<Space = CMatrix<N>>,
 {
@@ -439,37 +454,42 @@ where
         let lambda = 2.0 * PI / max_g_func_val.sqrt();
         let lambda_step_ratio = 500.0;
 
-        lambda / lambda_step_ratio
+        self.step_factor * lambda / lambda_step_ratio
     }
 }
 
-impl<'a, const N: usize, P> Numerov<CMatrix<N>, P> for RatioNumerov<'a, CMatrix<N>, P>
+impl<const N: usize, P> Numerov<CMatrix<N>, P> for RatioNumerov<CMatrix<N>, P>
 where
     P: Potential<Space = CMatrix<N>>,
 {
-    fn prepare(&mut self, r: f64, boundary: (CMatrix<N>, CMatrix<N>)) {
-        self.r = r;
+    fn prepare(&mut self, boundary: &Boundary<CMatrix<N>>) {
+        self.r = boundary.r_start;
 
-        self.current_g_func = self.g_func(&r);
+        self.current_g_func = self.g_func(&boundary.r_start);
         self.dr = self.recommended_step_size();
 
-        self.psi1 = boundary.0;
-        self.psi2 = boundary.1;
+        self.psi1 = boundary.start_value;
+        self.psi2 = boundary.before_value;
 
         self.f3 = self.identity
             + self.g_func(&(self.r - 2.0 * self.dr)) * Complex64::from(self.dr * self.dr / 12.0);
         self.f2 = self.identity
             + self.g_func(&(self.r - self.dr)) * Complex64::from(self.dr * self.dr / 12.0);
         self.f1 = self.identity + self.current_g_func * Complex64::from(self.dr * self.dr / 12.0);
+
+        self.is_set_up = true;
     }
 
     fn propagate_to(&mut self, r: f64) {
+        assert!(self.is_set_up, "Numerov method not set up");
         while self.r < r {
             self.variable_step();
         }
     }
 
     fn propagate_values(&mut self, r: f64, wave_init: CMatrix<N>) -> (Vec<f64>, Vec<CMatrix<N>>) {
+        assert!(self.is_set_up, "Numerov method not set up");
+
         let max_capacity: usize = 1000;
         let r_push_step = (r - self.r) / max_capacity as f64;
 

@@ -9,7 +9,6 @@ where
     P: Potential<Space = f64>,
 {
     potentials: Vec<(P, usize, usize)>,
-    value_array: FMatrix<N>,
 
     symmetric: bool,
 }
@@ -23,7 +22,6 @@ where
     pub fn new(potentials: Vec<(P, usize, usize)>, symmetric: bool) -> Self {
         Self {
             potentials,
-            value_array: FMatrix::zeros(),
             symmetric,
         }
     }
@@ -36,15 +34,18 @@ where
     type Space = FMatrix<N>;
 
     #[inline(always)]
-    fn value(&mut self, r: &f64) -> Self::Space {
-        for (potential, i, j) in self.potentials.iter_mut() {
-            self.value_array[(*i, *j)] = potential.value(r);
+    fn value(&self, r: &f64) -> Self::Space {
+        let mut values_matrix = FMatrix::<N>::zeros();
+        for (potential, i, j) in self.potentials.iter() {
+            let value = potential.value(r);
+
+            values_matrix[(*i, *j)] = value;
 
             if self.symmetric {
-                self.value_array[(*j, *i)] = self.value_array[(*i, *j)];
+                values_matrix[(*j, *i)] = value;
             }
         }
 
-        self.value_array
+        values_matrix
     }
 }
