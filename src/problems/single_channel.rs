@@ -50,7 +50,9 @@ impl SingleChannel {
         let particle2 = create_atom("Li7").unwrap();
         let energy = EnergyUnit::Kelvin.to_au(1e-7);
 
-        let particles = Particles::new_pair(particle1, particle2, energy);
+        let mut particles = Particles::new_pair(particle1, particle2, energy);
+        particles.internals.insert_value("l", 0.0);
+
         let potential = create_lj(0.002, 9.0, 0.0);
 
         CollisionParams::new(particles, potential)
@@ -78,7 +80,7 @@ impl SingleChannel {
         let data = waves
             .iter()
             .zip(potential_values.iter())
-            .map(|(wave, v)| vec![*wave, EnergyUnit::Au.to_kelvin(*v)])
+            .map(|(wave, v)| vec![*wave, *v])
             .collect();
 
         save_param_change("single_chan/wave_function", rs, data, header).unwrap();
@@ -103,7 +105,11 @@ impl SingleChannel {
         let propagation = start.elapsed() - preparation;
 
         let mut observable_extractor = ObservableExtractor::new(collision_params.clone(), result);
-        let s_matrix = observable_extractor.calculate_s_matrix(0, 0.0);
+
+        let asymptotic = collision_params.potential.asymptotic_value();
+        let l = collision_params.particles.internals.get_value("l") as usize;
+
+        let s_matrix = observable_extractor.calculate_s_matrix(l, asymptotic);
         let scattering_length = s_matrix.get_scattering_length(0);
 
         let extraction = start.elapsed() - preparation - propagation;
@@ -120,7 +126,7 @@ impl SingleChannel {
         let collision_params = Self::create_collision_params();
 
         let distances = linspace(100.0, 1e4, 1000);
-        let (rs, scatterings) = Dependencies::propagation_distance(
+        let (rs, scatterings) = Dependencies::<f64>::propagation_distance(
             distances,
             collision_params,
             Boundary::new(6.5, SingleDefaults::boundary()),
@@ -149,7 +155,7 @@ impl SingleChannel {
             params.particles.scale_red_mass(*scaling);
         }
 
-        let scatterings = Dependencies::params_change(
+        let scatterings = Dependencies::<f64>::params_change(
             &scalings,
             change_function,
             collision_params,

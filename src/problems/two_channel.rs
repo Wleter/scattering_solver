@@ -42,7 +42,9 @@ impl TwoChannel {
         let particle2 = create_atom("Li7").unwrap();
         let energy = EnergyUnit::Kelvin.to_au(1e-7);
 
-        let particles = Particles::new_pair(particle1, particle2, energy);
+        let mut particles = Particles::new_pair(particle1, particle2, energy);
+        particles.internals.insert_value("l", 0.0);
+
         let potential_lj1 = create_lj(0.002, 9.0, 0.0);
         let potential_lj2 = create_lj(0.0021, 8.9, EnergyUnit::Kelvin.to_au(1.0));
 
@@ -63,7 +65,7 @@ impl TwoChannel {
 
         numerov.prepare(&Boundary::new(6.5, MultiDefaults::boundary()));
 
-        let (rs, waves) = numerov.propagate_values(50.0, MultiDefaults::init_wave());
+        let (rs, waves) = numerov.propagate_values(100.0, MultiDefaults::init_wave());
         let propagation = start.elapsed() - preparation;
 
         let header = vec!["position", "channel 1", "channel 2"];
@@ -94,15 +96,15 @@ impl TwoChannel {
         let propagation = start.elapsed() - preparation;
 
         let mut observable_extractor = ObservableExtractor::new(collision_params.clone(), result);
-        let closed_channel = EnergyUnit::Kelvin.to_au(1.0);
+        let asymptotic = collision_params.potential.asymptotic_value();
 
         let asymptotic_states = AsymptoticStates {
-            energies: [0.0, closed_channel],
+            energies: vec![asymptotic[(0, 0)], asymptotic[(1, 1)]],
             eigenvectors: FMatrix::<2>::identity(),
             entrance_channel: 0,
         };
 
-        let s_matrix = observable_extractor.calculate_s_matrix(0, asymptotic_states);
+        let s_matrix = observable_extractor.calculate_s_matrix(0, &asymptotic_states);
         let scattering_length = s_matrix.get_scattering_length(0);
 
         let extraction = start.elapsed() - preparation - propagation;
