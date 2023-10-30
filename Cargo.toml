@@ -13,3 +13,9 @@ num = "0.4.1"
 ndarray = "0.15.6"
 ndarray-linalg = "0.16.0"
 rayon = "1.8.0"
+
+[profile.release]
+opt-level = 3
+codegen-units = 1
+panic = "abort"
+debug = true

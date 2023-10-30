@@ -1,4 +1,4 @@
-use std::{f64::consts::PI, rc::Rc};
+use std::f64::consts::PI;
 
 use num::complex::Complex64;
 use num_traits::{One, Zero};
@@ -14,11 +14,11 @@ use super::propagator::{MultiStep, Numerov, NumerovResult};
 
 /// Numerov method propagating ratios of the wave function,
 /// implementing Numerov and NumerovResult trait for single channel and multi channel cases
-pub struct RatioNumerov<T, P>
+pub struct RatioNumerov<'a, T, P>
 where
     P: Potential<Space = T>,
 {
-    pub collision_params: Rc<CollisionParams<P>>,
+    pub collision_params: &'a CollisionParams<P>,
     energy: f64,
     mass: f64,
 
@@ -39,13 +39,13 @@ where
     step_factor: f64,
 }
 
-impl<T, P> RatioNumerov<T, P>
+impl<'a, T, P> RatioNumerov<'a, T, P>
 where
     T: Zero + One,
     P: Potential<Space = T>,
 {
     /// Creates a new instance of the RatioNumerov struct
-    pub fn new(collision_params: Rc<CollisionParams<P>>, step_factor: f64) -> Self {
+    pub fn new(collision_params: &'a CollisionParams<P>, step_factor: f64) -> Self {
         let mass = collision_params.particles.red_mass();
         let energy = collision_params.particles.internals.get_value("energy");
 
@@ -73,7 +73,7 @@ where
     }
 }
 
-impl<P> RatioNumerov<f64, P>
+impl<'a, P> RatioNumerov<'a, f64, P>
 where
     P: Potential<Space = f64>,
 {
@@ -84,29 +84,33 @@ where
     }
 }
 
-impl<P> MultiStep<P> for RatioNumerov<f64, P>
+impl<'a, P> MultiStep<P> for RatioNumerov<'a, f64, P>
 where
     P: Potential<Space = f64>,
 {
     fn variable_step(&mut self) {
         self.current_g_func = self.g_func(&(self.r + self.dr));
-
+        
         let step_size = self.recommended_step_size();
-
         if step_size > 2.0 * self.dr.abs() && !self.doubled_step_before {
             self.doubled_step_before = true;
             self.double_step();
             self.current_g_func = self.g_func(&(self.r + self.dr));
         } else {
             self.doubled_step_before = false;
+            let mut halved = false;
             while 1.2 * step_size < self.dr.abs() {
                 self.half_step();
+                halved = true;
             }
-
-            self.current_g_func = self.g_func(&(self.r + self.dr));
+            
+            if halved {
+                self.current_g_func = self.g_func(&(self.r + self.dr));
+            }
         }
 
         self.step();
+
     }
 
     fn step(&mut self) {
@@ -154,7 +158,7 @@ where
     }
 }
 
-impl<P> Numerov<f64, P> for RatioNumerov<f64, P>
+impl<'a, P> Numerov<f64, P> for RatioNumerov<'a, f64, P>
 where
     P: Potential<Space = f64>,
 {
@@ -216,39 +220,44 @@ where
     }
 }
 
-impl<const N: usize, P> RatioNumerov<FMatrix<N>, P>
+impl<'a, const N: usize, P> RatioNumerov<'a, FMatrix<N>, P>
 where
     P: Potential<Space = FMatrix<N>>,
 {
     /// Returns the g function described in the Numerov method at position r
+    #[inline(always)]
     fn g_func(&mut self, &r: &f64) -> FMatrix<N> {
         2.0 * self.mass * (self.energy * self.identity - self.collision_params.potential.value(&r))
     }
 }
 
-impl<const N: usize, P> MultiStep<P> for RatioNumerov<FMatrix<N>, P>
+impl<'a, const N: usize, P> MultiStep<P> for RatioNumerov<'a, FMatrix<N>, P>
 where
     P: Potential<Space = FMatrix<N>>,
 {
     fn variable_step(&mut self) {
         self.current_g_func = self.g_func(&(self.r + self.dr));
-
+        
         let step_size = self.recommended_step_size();
-
         if step_size > 2.0 * self.dr && !self.doubled_step_before {
             self.doubled_step_before = true;
             self.double_step();
             self.current_g_func = self.g_func(&(self.r + self.dr));
         } else {
             self.doubled_step_before = false;
+            let mut halved = false;
             while 1.2 * step_size < self.dr.abs() {
+                halved = true;
                 self.half_step();
             }
-
-            self.current_g_func = self.g_func(&(self.r + self.dr));
+            if halved {
+                self.current_g_func = self.g_func(&(self.r + self.dr));
+            }
+            
         }
-
+        
         self.step();
+
     }
 
     fn step(&mut self) {
@@ -303,7 +312,7 @@ where
     }
 }
 
-impl<const N: usize, P> Numerov<FMatrix<N>, P> for RatioNumerov<FMatrix<N>, P>
+impl<'a, const N: usize, P> Numerov<FMatrix<N>, P> for RatioNumerov<'a, FMatrix<N>, P>
 where
     P: Potential<Space = FMatrix<N>>,
 {
@@ -365,7 +374,7 @@ where
     }
 }
 
-impl<const N: usize, P> RatioNumerov<CMatrix<N>, P>
+impl<'a, const N: usize, P> RatioNumerov<'a, CMatrix<N>, P>
 where
     P: Potential<Space = CMatrix<N>>,
 {
@@ -376,7 +385,7 @@ where
     }
 }
 
-impl<const N: usize, P> MultiStep<P> for RatioNumerov<CMatrix<N>, P>
+impl<'a, const N: usize, P> MultiStep<P> for RatioNumerov<'a, CMatrix<N>, P>
 where
     P: Potential<Space = CMatrix<N>>,
 {
@@ -391,11 +400,14 @@ where
             self.current_g_func = self.g_func(&(self.r + self.dr));
         } else {
             self.doubled_step_before = false;
+            let mut halved = false;
             while 1.2 * step_size < self.dr.abs() {
+                halved = true;
                 self.half_step();
             }
-
-            self.current_g_func = self.g_func(&(self.r + self.dr));
+            if halved {
+                self.current_g_func = self.g_func(&(self.r + self.dr));
+            }
         }
 
         self.step();
@@ -458,7 +470,7 @@ where
     }
 }
 
-impl<const N: usize, P> Numerov<CMatrix<N>, P> for RatioNumerov<CMatrix<N>, P>
+impl<'a, const N: usize, P> Numerov<CMatrix<N>, P> for RatioNumerov<'a, CMatrix<N>, P>
 where
     P: Potential<Space = CMatrix<N>>,
 {

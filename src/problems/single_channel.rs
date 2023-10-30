@@ -1,4 +1,4 @@
-use std::{collections::VecDeque, rc::Rc, time::Instant};
+use std::{collections::VecDeque, time::Instant};
 
 use quantum::{
     particle_factory::create_atom,
@@ -13,7 +13,7 @@ use scattering_solver::{
     defaults::SingleDefaults,
     numerovs::{propagator::Numerov, ratio_numerov::RatioNumerov},
     observables::{
-        dependencies::Dependencies, observable_extractor::ObservableExtractor, s_matrix::HasSMatrix,
+        dependencies::SingleDependencies, observable_extractor::ObservableExtractor, s_matrix::HasSMatrix,
     },
     potentials::{potential::Potential, potential_factory::create_lj},
     utility::linspace,
@@ -62,8 +62,8 @@ impl SingleChannel {
         println!("Calculating wave function...");
         let start = Instant::now();
 
-        let collision_params = Rc::new(Self::create_collision_params());
-        let mut numerov = RatioNumerov::new(collision_params, 1.0);
+        let collision_params = Self::create_collision_params();
+        let mut numerov = RatioNumerov::new(&collision_params, 1.0);
 
         let preparation = start.elapsed();
 
@@ -93,8 +93,8 @@ impl SingleChannel {
         println!("Calculating scattering length...");
         let start = Instant::now();
 
-        let collision_params = Rc::new(Self::create_collision_params());
-        let mut numerov = RatioNumerov::new(collision_params.clone(), 1.0);
+        let collision_params = Self::create_collision_params();
+        let mut numerov = RatioNumerov::new(&collision_params, 1.0);
 
         let preparation = start.elapsed();
 
@@ -104,7 +104,7 @@ impl SingleChannel {
 
         let propagation = start.elapsed() - preparation;
 
-        let mut observable_extractor = ObservableExtractor::new(collision_params.clone(), result);
+        let mut observable_extractor = ObservableExtractor::new(&collision_params, result);
 
         let asymptotic = collision_params.potential.asymptotic_value();
         let l = collision_params.particles.internals.get_value("l") as usize;
@@ -126,7 +126,7 @@ impl SingleChannel {
         let collision_params = Self::create_collision_params();
 
         let distances = linspace(100.0, 1e4, 1000);
-        let (rs, scatterings) = Dependencies::<f64>::propagation_distance(
+        let (rs, scatterings) = SingleDependencies::propagation_distance(
             distances,
             collision_params,
             Boundary::new(6.5, SingleDefaults::boundary()),
@@ -150,12 +150,12 @@ impl SingleChannel {
         let scalings = linspace(0.8, 1.2, 1000);
         fn change_function(
             scaling: &f64,
-            params: &mut CollisionParams<impl Potential<Space = f64>>,
+            params: &mut CollisionParams<impl Potential>,
         ) {
             params.particles.scale_red_mass(*scaling);
         }
 
-        let scatterings = Dependencies::<f64>::params_change(
+        let scatterings = SingleDependencies::params_change(
             &scalings,
             change_function,
             collision_params,

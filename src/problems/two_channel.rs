@@ -1,8 +1,8 @@
-use std::{collections::VecDeque, rc::Rc, time::Instant};
+use std::{collections::VecDeque, time::Instant};
 
 use quantum::{
     particle_factory::create_atom, particles::Particles, problem_selector::ProblemSelector,
-    saving::save_param_change, units::energy_units::EnergyUnit,
+    saving::{save_param_change, save_param_change_complex}, units::energy_units::EnergyUnit,
 };
 use scattering_solver::{
     asymptotic_states::AsymptoticStates,
@@ -10,12 +10,12 @@ use scattering_solver::{
     collision_params::CollisionParams,
     defaults::MultiDefaults,
     numerovs::{propagator::Numerov, ratio_numerov::RatioNumerov},
-    observables::{observable_extractor::ObservableExtractor, s_matrix::HasSMatrix},
+    observables::{observable_extractor::ObservableExtractor, s_matrix::HasSMatrix, dependencies::MultiDependencies},
     potentials::{
         coupling_factory::couple_neighbors, gaussian_coupling::GaussianCoupling,
         potential::Potential, potential_factory::create_lj,
     },
-    types::FMatrix,
+    types::FMatrix, utility::linspace,
 };
 
 pub struct TwoChannel {}
@@ -24,13 +24,14 @@ impl ProblemSelector for TwoChannel {
     const NAME: &'static str = "two channel";
 
     fn list() -> Vec<&'static str> {
-        vec!["wave function", "scattering length"]
+        vec!["wave function", "scattering length", "mass scaling"]
     }
 
     fn methods(number: &str, _args: &mut VecDeque<String>) {
         match number {
             "0" => Self::wave_function(),
             "1" => Self::scattering_length(),
+            "2" => Self::mass_scaling(),
             _ => println!("No method found for number {}", number),
         }
     }
@@ -58,8 +59,8 @@ impl TwoChannel {
         println!("Calculating wave function...");
         let start = Instant::now();
 
-        let collision_params = Rc::new(Self::create_collision_params());
-        let mut numerov = RatioNumerov::new(collision_params, 1.0);
+        let collision_params = Self::create_collision_params();
+        let mut numerov = RatioNumerov::new(&collision_params, 1.0);
 
         let preparation = start.elapsed();
 
@@ -84,8 +85,8 @@ impl TwoChannel {
         println!("Calculating scattering length...");
         let start = Instant::now();
 
-        let collision_params = Rc::new(Self::create_collision_params());
-        let mut numerov = RatioNumerov::new(collision_params.clone(), 1.0);
+        let collision_params = Self::create_collision_params();
+        let mut numerov = RatioNumerov::new(&collision_params, 1.0);
 
         let preparation = start.elapsed();
 
@@ -95,7 +96,7 @@ impl TwoChannel {
 
         let propagation = start.elapsed() - preparation;
 
-        let mut observable_extractor = ObservableExtractor::new(collision_params.clone(), result);
+        let mut observable_extractor = ObservableExtractor::new(&collision_params, result);
         let asymptotic = collision_params.potential.asymptotic_value();
 
         let asymptotic_states = AsymptoticStates {
@@ -103,8 +104,9 @@ impl TwoChannel {
             eigenvectors: FMatrix::<2>::identity(),
             entrance_channel: 0,
         };
+        let l = collision_params.particles.internals.get_value("l") as usize;
 
-        let s_matrix = observable_extractor.calculate_s_matrix(0, &asymptotic_states);
+        let s_matrix = observable_extractor.calculate_s_matrix(l, &asymptotic_states);
         let scattering_length = s_matrix.get_scattering_length(0);
 
         let extraction = start.elapsed() - preparation - propagation;
@@ -113,5 +115,45 @@ impl TwoChannel {
         println!("Propagation time: {:?} μs", propagation.as_micros());
         println!("Extraction time: {:?} μs", extraction.as_micros());
         println!("Scattering length: {:.2e} bohr", scattering_length);
+    }
+
+    fn mass_scaling() {
+        println!("Calculating scattering length vs mass scaling...");
+
+        let collision_params = Self::create_collision_params();
+
+        let scalings = linspace(0.8, 1.2, 1000);
+        fn change_function(
+            scaling: &f64,
+            params: &mut CollisionParams<impl Potential>,
+        ) {
+            params.particles.scale_red_mass(*scaling);
+        }
+
+        let asymptotic = collision_params.potential.asymptotic_value();
+        let asymptotic_states = AsymptoticStates {
+            energies: vec![asymptotic[(0, 0)], asymptotic[(1, 1)]],
+            eigenvectors: FMatrix::<2>::identity(),
+            entrance_channel: 0,
+        };
+
+        let scatterings = MultiDependencies::params_change(
+            &scalings,
+            change_function,
+            collision_params,
+            Boundary::new(6.5, MultiDefaults::boundary()),
+            asymptotic_states,
+            0,
+            1e3,
+        );
+
+        let header = vec![
+            "mass scale factor",
+            "scattering length real",
+            "scattering length imag",
+        ];
+
+        save_param_change_complex("two_chan/mass_scaling", scalings, scatterings, header)
+            .unwrap();
     }
 }

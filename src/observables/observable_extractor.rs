@@ -1,5 +1,3 @@
-use std::rc::Rc;
-
 use nalgebra::DMatrix;
 use num::complex::Complex64;
 
@@ -14,19 +12,19 @@ use crate::{
 
 use super::s_matrix::{MultiChanSMatrix, OneChanSMatrix};
 
-pub struct ObservableExtractor<T, P>
+pub struct ObservableExtractor<'a, T, P>
 where
     P: Potential<Space = T>,
 {
-    collision_params: Rc<CollisionParams<P>>,
+    collision_params: &'a CollisionParams<P>,
     result: NumerovResult<T>,
 }
 
-impl<T, P> ObservableExtractor<T, P>
+impl<'a, T, P> ObservableExtractor<'a, T, P>
 where
     P: Potential<Space = T>,
 {
-    pub fn new(collision_params: Rc<CollisionParams<P>>, result: NumerovResult<T>) -> Self {
+    pub fn new(collision_params: &'a CollisionParams<P>, result: NumerovResult<T>) -> Self {
         Self {
             collision_params,
             result,
@@ -38,7 +36,7 @@ where
     }
 }
 
-impl<P> ObservableExtractor<f64, P>
+impl<'a, P> ObservableExtractor<'a, f64, P>
 where
     P: Potential<Space = f64>,
 {
@@ -70,7 +68,7 @@ where
     }
 }
 
-impl<const N: usize, P> ObservableExtractor<FMatrix<N>, P>
+impl<'a, const N: usize, P> ObservableExtractor<'a, FMatrix<N>, P>
 where
     P: Potential<Space = FMatrix<N>>,
 {
