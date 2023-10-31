@@ -86,12 +86,12 @@ impl RatioNumerov<FMatrix, Rc<dyn MultiPotential>>
 
             r: 0.0,
             dr: 0.0,
-            psi1: zero,
-            psi2: zero,
+            psi1: zero.clone(),
+            psi2: zero.clone(),
 
-            f1: zero,
-            f2: zero,
-            f3: zero,
+            f1: zero.clone(),
+            f2: zero.clone(),
+            f3: zero.clone(),
 
             identity: FMatrix::identity(dim, dim),
             current_g_func: zero,
@@ -120,12 +120,12 @@ impl RatioNumerov<CMatrix, Rc<dyn MultiCPotential>>
 
             r: 0.0,
             dr: 0.0,
-            psi1: zero,
-            psi2: zero,
+            psi1: zero.clone(),
+            psi2: zero.clone(),
 
-            f1: zero,
-            f2: zero,
-            f3: zero,
+            f1: zero.clone(),
+            f2: zero.clone(),
+            f3: zero.clone(),
 
             identity: CMatrix::identity(dim, dim),
             current_g_func: zero,
@@ -284,7 +284,7 @@ impl RatioNumerov<FMatrix, Rc<dyn MultiPotential>>
     /// Returns the g function described in the Numerov method at position r
     #[inline(always)]
     fn g_func(&mut self, &r: &f64) -> FMatrix {
-        2.0 * self.mass * (self.energy * self.identity - self.potential.value(&r))
+        2.0 * self.mass * (self.energy * &self.identity - self.potential.value(&r))
     }
 }
 
@@ -318,40 +318,41 @@ impl MultiStep for RatioNumerov<FMatrix, Rc<dyn MultiPotential>>
     fn step(&mut self) {
         self.r += self.dr;
 
-        let f = self.identity + self.dr * self.dr * self.current_g_func / 12.0;
-        let psi = f.try_inverse().unwrap()
-            * (12.0 * self.identity - 10.0 * self.f1 - self.f2 * self.psi1.try_inverse().unwrap());
+        let f = &self.identity + self.dr * self.dr * &self.current_g_func / 12.0;
+        let psi = f.clone().try_inverse().unwrap()
+            * (12.0 * &self.identity - 10.0 * &self.f1 - &self.f2 * self.psi1.clone().try_inverse().unwrap());
 
-        self.f3 = self.f2;
-        self.f2 = self.f1;
+        self.f3 = self.f2.clone();
+        self.f2 = self.f1.clone();
         self.f1 = f;
 
-        self.psi2 = self.psi1;
+        self.psi2 = self.psi1.clone();
         self.psi1 = psi;
     }
 
     fn half_step(&mut self) {
         self.dr /= 2.0;
+        let g_func = self.g_func(&(self.r - self.dr));
 
-        let f = self.identity + self.dr * self.dr * self.g_func(&(self.r - self.dr)) / 12.0;
-        self.f1 = self.f1 / 4.0 + 0.75 * self.identity;
-        self.f2 = self.f2 / 4.0 + 0.75 * self.identity;
+        let f = &self.identity + self.dr * self.dr * &g_func / 12.0;
+        self.f1 = &self.f1 / 4.0 + 0.75 * &self.identity;
+        self.f2 = &self.f2 / 4.0 + 0.75 * &self.identity;
 
-        let psi = (12.0 * self.identity - 10.0 * f).try_inverse().unwrap()
-            * (self.f1 * self.psi1 + self.f2);
+        let psi = (12.0 * &self.identity - 10.0 * &f).try_inverse().unwrap()
+            * (&self.f1 * &self.psi1 + &self.f2);
         self.f2 = f;
 
-        self.psi2 = psi;
+        self.psi2 = psi.clone();
         self.psi1 *= psi.try_inverse().unwrap();
     }
 
     fn double_step(&mut self) {
         self.dr *= 2.0;
 
-        self.f2 = 4.0 * self.f3 - 3.0 * self.identity;
-        self.f1 = 4.0 * self.f1 - 3.0 * self.identity;
+        self.f2 = 4.0 * &self.f3 - 3.0 * &self.identity;
+        self.f1 = 4.0 * &self.f1 - 3.0 * &self.identity;
 
-        self.psi1 *= self.psi2;
+        self.psi1 *= &self.psi2;
     }
 
     fn recommended_step_size(&mut self) -> f64 {
@@ -375,12 +376,15 @@ impl Numerov<FMatrix> for RatioNumerov<FMatrix, Rc<dyn MultiPotential>>
         self.current_g_func = self.g_func(&boundary.r_start);
         self.dr = self.recommended_step_size();
 
-        self.psi1 = boundary.start_value;
-        self.psi2 = boundary.before_value;
+        self.psi1 = boundary.start_value.clone();
+        self.psi2 = boundary.before_value.clone();
 
-        self.f3 = self.identity + self.dr * self.dr * self.g_func(&(self.r - 2.0 * self.dr)) / 12.0;
-        self.f2 = self.identity + self.dr * self.dr * self.g_func(&(self.r - self.dr)) / 12.0;
-        self.f1 = self.identity + self.dr * self.dr * self.current_g_func / 12.0;
+        let g_func_3 = self.g_func(&(self.r - 2.0 * self.dr));
+        let g_func_2 = self.g_func(&(self.r - self.dr));
+
+        self.f3 = &self.identity + self.dr * self.dr * g_func_3 / 12.0;
+        self.f2 = &self.identity + self.dr * self.dr * g_func_2 / 12.0;
+        self.f1 = &self.identity + self.dr * self.dr * &self.current_g_func / 12.0;
 
         self.is_set_up = true;
     }
@@ -402,16 +406,16 @@ impl Numerov<FMatrix> for RatioNumerov<FMatrix, Rc<dyn MultiPotential>>
 
         let mut psi_actual = wave_init;
         positions.push(self.r);
-        wave_functions.push(psi_actual);
+        wave_functions.push(psi_actual.clone());
 
         while self.r < r {
             self.variable_step();
 
-            psi_actual = self.psi1 * psi_actual;
+            psi_actual = &self.psi1 * psi_actual;
 
             if (self.r - positions.last().unwrap()) > r_push_step {
                 positions.push(self.r);
-                wave_functions.push(psi_actual);
+                wave_functions.push(psi_actual.clone());
             }
         }
 
@@ -422,7 +426,7 @@ impl Numerov<FMatrix> for RatioNumerov<FMatrix, Rc<dyn MultiPotential>>
         NumerovResult {
             r_last: self.r,
             dr: self.dr,
-            wave_ratio: self.psi1,
+            wave_ratio: self.psi1.clone(),
         }
     }
 }
@@ -431,7 +435,7 @@ impl RatioNumerov<CMatrix, Rc<dyn MultiCPotential>>
 {
     /// Returns the g function described in the Numerov method at position r
     fn g_func(&mut self, &r: &f64) -> CMatrix {
-        (self.identity * Complex64::from(self.energy) - self.potential.value(&r)) * Complex64::from(2.0 * self.mass)
+        (&self.identity * Complex64::from(self.energy) - self.potential.value(&r)) * Complex64::from(2.0 * self.mass)
     }
 }
 
@@ -464,45 +468,46 @@ impl MultiStep for RatioNumerov<CMatrix, Rc<dyn MultiCPotential>>
     fn step(&mut self) {
         self.r += self.dr;
 
-        let f = self.identity + self.current_g_func * Complex64::from(self.dr * self.dr / 12.0);
-        let psi = f.try_inverse().unwrap()
-            * (self.identity * Complex64::from(12.0)
-                - self.f1 * Complex64::from(10.0)
-                - self.f2 * self.psi1.try_inverse().unwrap());
+        let f = &self.identity + &self.current_g_func * Complex64::from(self.dr * self.dr / 12.0);
+        let psi = f.clone().try_inverse().unwrap()
+            * (&self.identity * Complex64::from(12.0)
+                - &self.f1 * Complex64::from(10.0)
+                - &self.f2 * self.psi1.clone().try_inverse().unwrap());
 
-        self.f3 = self.f2;
-        self.f2 = self.f1;
+        self.f3 = self.f2.clone();
+        self.f2 = self.f1.clone();
         self.f1 = f;
 
-        self.psi2 = self.psi1;
+        self.psi2 = self.psi1.clone();
         self.psi1 = psi;
     }
 
     fn half_step(&mut self) {
         self.dr /= 2.0;
+        let g_func = self.g_func(&(self.r - self.dr));
 
-        let f = self.identity
-            + self.g_func(&(self.r - self.dr)) * Complex64::from(self.dr * self.dr / 12.0);
-        self.f1 = self.f1 / Complex64::from(4.0) + self.identity * Complex64::from(0.75);
-        self.f2 = self.f2 / Complex64::from(4.0) + self.identity * Complex64::from(0.75);
+        let f = &self.identity
+            + g_func * Complex64::from(self.dr * self.dr / 12.0);
+        self.f1 = &self.f1 / Complex64::from(4.0) + &self.identity * Complex64::from(0.75);
+        self.f2 = &self.f2 / Complex64::from(4.0) + &self.identity * Complex64::from(0.75);
 
-        let psi = (self.identity * Complex64::from(12.0) - f * Complex64::from(10.0))
+        let psi = (&self.identity * Complex64::from(12.0) - &f * Complex64::from(10.0))
             .try_inverse()
             .unwrap()
-            * (self.f1 * self.psi1 + self.f2);
+            * (&self.f1 * &self.psi1 + &self.f2);
         self.f2 = f;
 
-        self.psi2 = psi;
+        self.psi2 = psi.clone();
         self.psi1 *= psi.try_inverse().unwrap();
     }
 
     fn double_step(&mut self) {
         self.dr *= 2.0;
 
-        self.f2 = self.f3 * Complex64::from(4.0) - self.identity * Complex64::from(3.0);
-        self.f1 = self.f1 * Complex64::from(4.0) - self.identity * Complex64::from(3.0);
+        self.f2 = &self.f3 * Complex64::from(4.0) - &self.identity * Complex64::from(3.0);
+        self.f1 = &self.f1 * Complex64::from(4.0) - &self.identity * Complex64::from(3.0);
 
-        self.psi1 *= self.psi2;
+        self.psi1 *= &self.psi2;
     }
 
     fn recommended_step_size(&mut self) -> f64 {
@@ -526,14 +531,15 @@ impl Numerov<CMatrix> for RatioNumerov<CMatrix, Rc<dyn MultiCPotential>>
         self.current_g_func = self.g_func(&boundary.r_start);
         self.dr = self.recommended_step_size();
 
-        self.psi1 = boundary.start_value;
-        self.psi2 = boundary.before_value;
+        self.psi1 = boundary.start_value.clone();
+        self.psi2 = boundary.before_value.clone();
 
-        self.f3 = self.identity
-            + self.g_func(&(self.r - 2.0 * self.dr)) * Complex64::from(self.dr * self.dr / 12.0);
-        self.f2 = self.identity
-            + self.g_func(&(self.r - self.dr)) * Complex64::from(self.dr * self.dr / 12.0);
-        self.f1 = self.identity + self.current_g_func * Complex64::from(self.dr * self.dr / 12.0);
+        let g_func_3 = self.g_func(&(self.r - 2.0 * self.dr));
+        let g_func_2 = self.g_func(&(self.r - self.dr));
+
+        self.f3 = &self.identity + g_func_3 * Complex64::from(self.dr * self.dr / 12.0);
+        self.f2 = &self.identity + g_func_2 * Complex64::from(self.dr * self.dr / 12.0);
+        self.f1 = &self.identity + &self.current_g_func * Complex64::from(self.dr * self.dr / 12.0);
 
         self.is_set_up = true;
     }
@@ -556,16 +562,16 @@ impl Numerov<CMatrix> for RatioNumerov<CMatrix, Rc<dyn MultiCPotential>>
 
         let mut psi_actual = wave_init;
         positions.push(self.r);
-        wave_functions.push(psi_actual);
+        wave_functions.push(psi_actual.clone());
 
         while self.r < r {
             self.variable_step();
 
-            psi_actual = self.psi1 * psi_actual;
+            psi_actual = &self.psi1 * psi_actual;
 
             if (self.r - positions.last().unwrap()) > r_push_step {
                 positions.push(self.r);
-                wave_functions.push(psi_actual);
+                wave_functions.push(psi_actual.clone());
             }
         }
 
@@ -576,7 +582,7 @@ impl Numerov<CMatrix> for RatioNumerov<CMatrix, Rc<dyn MultiCPotential>>
         NumerovResult {
             r_last: self.r,
             dr: self.dr,
-            wave_ratio: self.psi1,
+            wave_ratio: self.psi1.clone(),
         }
     }
 }

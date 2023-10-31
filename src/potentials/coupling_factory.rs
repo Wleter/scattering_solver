@@ -16,5 +16,5 @@ pub fn couple_neighbors(couplings: Vec<Box<dyn OnePotential>>, potentials: Vec<B
     let couplings = MultiCoupling::new(numbered_potentials, potentials.len(), true);
     let potential = MultiDiagPotential::new(potentials);
 
-    CoupledPotential::new(potential, couplings)
+    CoupledPotential::new(Box::new(potential), Box::new(couplings))
 }

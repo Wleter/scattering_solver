@@ -18,7 +18,7 @@ impl SingleDependencies {
     pub fn propagation_distance(
         distances: Vec<f64>,
         particles: Particles,
-        potential: impl OnePotential,
+        potential: impl OnePotential + 'static,
         boundary: Boundary<f64>,
     ) -> (Vec<f64>, Vec<Complex64>)
     {
@@ -51,7 +51,7 @@ impl SingleDependencies {
         (rs, scatterings)
     }
 
-    pub fn params_change<P: OnePotential + Clone>(
+    pub fn params_change<P: OnePotential + Clone + 'static>(
         changes: &Vec<f64>,
         change_function: impl Fn(&f64, &mut Particles, &mut P),
         mut particles: Particles,
@@ -91,7 +91,7 @@ impl MultiDependencies {
     pub fn propagation_distance(
         distances: Vec<f64>,
         particles: Particles,
-        potential: impl MultiPotential,
+        potential: impl MultiPotential + 'static,
         boundary: Boundary<FMatrix>,
         asymptotic: AsymptoticStates,
         entrance_channel: usize,
@@ -124,7 +124,7 @@ impl MultiDependencies {
         (rs, scatterings)
     }
 
-    pub fn params_change<P: MultiPotential + Clone>(
+    pub fn params_change<P: MultiPotential + Clone + 'static>(
         changes: &Vec<f64>,
         change_function: impl Fn(&f64, &mut Particles, &mut P),
         mut particles: Particles,
@@ -144,7 +144,7 @@ impl MultiDependencies {
             let rc_particles = Rc::new(particles.clone());
             let rc_potential: Rc<dyn MultiPotential> = Rc::new(potential.clone());
 
-            let mut numerov = RatioNumerov::new_multi(rc_particles, rc_potential, 1.0);
+            let mut numerov = RatioNumerov::new_multi(rc_particles.clone(), rc_potential.clone(), 1.0);
             numerov.prepare(&boundary);
             numerov.propagate_to(propagation_distance);
             let result = numerov.result();

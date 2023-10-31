@@ -11,10 +11,10 @@ pub struct CoupledPotential
 
 impl CoupledPotential
 {
-    pub fn new(potential: impl MultiPotential, coupling: impl MultiPotential) -> Self {
+    pub fn new(potential: Box<dyn MultiPotential>, coupling: Box<dyn MultiPotential>) -> Self {
         Self {
-            potential: Box::new(potential),
-            coupling: Box::new(coupling),
+            potential,
+            coupling,
         }
     }
 }

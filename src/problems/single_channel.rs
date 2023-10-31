@@ -1,4 +1,4 @@
-use std::{collections::VecDeque, time::Instant};
+use std::{collections::VecDeque, time::Instant, rc::Rc};
 
 use quantum::{
     particle_factory::create_atom,
@@ -9,13 +9,12 @@ use quantum::{
 };
 use scattering_solver::{
     boundary::Boundary,
-    collision_params::CollisionParams,
     defaults::SingleDefaults,
     numerovs::{propagator::Numerov, ratio_numerov::RatioNumerov},
     observables::{
         dependencies::SingleDependencies, observable_extractor::ObservableExtractor, s_matrix::HasSMatrix,
     },
-    potentials::{potential::{Potential, OnePotential}, potential_factory::create_lj},
+    potentials::{potential::OnePotential, potential_factory::create_lj, composite_potential::CompositePotential},
     utility::linspace,
 };
 
@@ -45,7 +44,7 @@ impl ProblemSelector for SingleChannel {
 }
 
 impl SingleChannel {
-    fn create_collision_params() -> (Particles, impl OnePotential) {
+    fn create_collision_params() -> (Particles, CompositePotential) {
         let particle1 = create_atom("Li6").unwrap();
         let particle2 = create_atom("Li7").unwrap();
         let energy = EnergyUnit::Kelvin.to_au(1e-7);
@@ -63,8 +62,10 @@ impl SingleChannel {
         let start = Instant::now();
 
         let (particles, potential) = Self::create_collision_params();
-        let mut numerov = RatioNumerov::new_single(&particles, potential, 1.0);
-
+        let particles = Rc::new(particles);
+        let potential: Rc<dyn OnePotential + 'static> = Rc::new(potential);
+        
+        let mut numerov = RatioNumerov::new_single(particles, potential, 1.0);
         let preparation = start.elapsed();
 
         numerov.prepare(&Boundary::new(6.5, SingleDefaults::boundary()));
@@ -94,7 +95,10 @@ impl SingleChannel {
         let start = Instant::now();
 
         let (particles, potential) = Self::create_collision_params();
-        let mut numerov = RatioNumerov::new_single(&particles, potential, 1.0);
+        let particles = Rc::new(particles);
+        let potential: Rc<dyn OnePotential + 'static> = Rc::new(potential);
+
+        let mut numerov = RatioNumerov::new_single(particles.clone(), potential.clone(), 1.0);
 
         let preparation = start.elapsed();
 
@@ -104,10 +108,10 @@ impl SingleChannel {
 
         let propagation = start.elapsed() - preparation;
 
-        let mut observable_extractor = ObservableExtractor::new(&particles, potential, result);
+        let mut observable_extractor = ObservableExtractor::new(particles.clone(), potential.clone(), result);
 
-        let asymptotic = collision_params.potential.asymptotic_value();
-        let l = collision_params.particles.internals.get_value("l") as usize;
+        let asymptotic = potential.asymptotic_value();
+        let l = particles.internals.get_value("l") as usize;
 
         let s_matrix = observable_extractor.calculate_s_matrix(l, asymptotic);
         let scattering_length = s_matrix.get_scattering_length(0);

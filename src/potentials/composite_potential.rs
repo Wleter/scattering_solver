@@ -13,8 +13,8 @@ impl CompositePotential {
         }
     }
 
-    pub fn add_potential(&mut self, potential: impl OnePotential) -> &mut Self { 
-        let potential: Box<dyn OnePotential> = Box::new(potential);        
+    pub fn add_potential(&mut self, potential: Box<dyn OnePotential>) -> &mut Self { 
+        let potential: Box<dyn OnePotential> = potential;        
         self.potentials.push(potential);
 
         self
