@@ -1,41 +1,38 @@
 use crate::types::FMatrix;
 
-use super::potential::Potential;
+use super::potential::{OnePotential, MultiPotential};
 
 /// Multi coupling potential used to couple multi channel potentials.
 #[derive(Clone)]
-pub struct MultiCoupling<const N: usize, P>
-where
-    P: Potential<Space = f64>,
+pub struct MultiCoupling
 {
-    potentials: Vec<(P, usize, usize)>,
-
+    potentials: Vec<(Box<dyn OnePotential>, usize, usize)>,
+    dim: usize,
     symmetric: bool,
 }
 
-impl<const N: usize, P> MultiCoupling<N, P>
-where
-    P: Potential<Space = f64>,
+impl MultiCoupling
 {
     /// Creates new multi coupling potential with given vector of potentials with their coupling indices in potential matrix.
     /// If `symmetric` is true, the coupling matrix will be symmetric.
-    pub fn new(potentials: Vec<(P, usize, usize)>, symmetric: bool) -> Self {
+    pub fn new(potentials: Vec<(Box<dyn OnePotential>, usize, usize)>, dim: usize, symmetric: bool) -> Self {
         Self {
             potentials,
+            dim,
             symmetric,
         }
     }
 }
 
-impl<const N: usize, P> Potential for MultiCoupling<N, P>
-where
-    P: Potential<Space = f64>,
+impl MultiPotential for MultiCoupling
 {
-    type Space = FMatrix<N>;
+    fn dim(&self) -> usize {
+        self.dim
+    }
 
     #[inline(always)]
-    fn value(&self, r: &f64) -> Self::Space {
-        let mut values_matrix = FMatrix::<N>::zeros();
+    fn value(&self, r: &f64) -> FMatrix {
+        let mut values_matrix = FMatrix::zeros(self.dim, self.dim);
         for (potential, i, j) in self.potentials.iter() {
             let value = potential.value(r);
 

@@ -1,12 +1,11 @@
-use std::f64::consts::PI;
+use std::{f64::consts::PI, rc::Rc};
 
 use num::complex::Complex64;
-use num_traits::{One, Zero};
+use quantum::particles::Particles;
 
 use crate::{
     boundary::Boundary,
-    collision_params::CollisionParams,
-    potentials::potential::Potential,
+    potentials::potential::{OnePotential, MultiPotential, MultiCPotential},
     types::{CMatrix, FMatrix},
 };
 
@@ -14,11 +13,10 @@ use super::propagator::{MultiStep, Numerov, NumerovResult};
 
 /// Numerov method propagating ratios of the wave function,
 /// implementing Numerov and NumerovResult trait for single channel and multi channel cases
-pub struct RatioNumerov<'a, T, P>
-where
-    P: Potential<Space = T>,
+pub struct RatioNumerov<T, P>
 {
-    pub collision_params: &'a CollisionParams<P>,
+    pub potential: P,
+    pub particles: Rc<Particles>,
     energy: f64,
     mass: f64,
 
@@ -39,32 +37,30 @@ where
     step_factor: f64,
 }
 
-impl<'a, T, P> RatioNumerov<'a, T, P>
-where
-    T: Zero + One,
-    P: Potential<Space = T>,
+impl RatioNumerov<f64, Rc<dyn OnePotential>>
 {
     /// Creates a new instance of the RatioNumerov struct
-    pub fn new(collision_params: &'a CollisionParams<P>, step_factor: f64) -> Self {
-        let mass = collision_params.particles.red_mass();
-        let energy = collision_params.particles.internals.get_value("energy");
+    pub fn new_single(particles: Rc<Particles>, potential: Rc<dyn OnePotential>, step_factor: f64) -> Self {
+        let mass = particles.red_mass();
+        let energy = particles.internals.get_value("energy");
 
         Self {
-            collision_params,
+            potential,
+            particles,
             energy,
             mass,
 
             r: 0.0,
             dr: 0.0,
-            psi1: T::zero(),
-            psi2: T::zero(),
+            psi1: 0.0,
+            psi2: 0.0,
 
-            f1: T::zero(),
-            f2: T::zero(),
-            f3: T::zero(),
+            f1: 0.0,
+            f2: 0.0,
+            f3: 0.0,
 
-            identity: T::one(),
-            current_g_func: T::zero(),
+            identity: 1.0,
+            current_g_func: 0.0,
 
             doubled_step_before: false,
             is_set_up: false,
@@ -73,20 +69,85 @@ where
     }
 }
 
-impl<'a, P> RatioNumerov<'a, f64, P>
-where
-    P: Potential<Space = f64>,
+impl RatioNumerov<FMatrix, Rc<dyn MultiPotential>>
+{
+    /// Creates a new instance of the RatioNumerov struct
+    pub fn new_multi(particles: Rc<Particles>, potential: Rc<dyn MultiPotential>, step_factor: f64) -> Self {
+        let mass = particles.red_mass();
+        let energy = particles.internals.get_value("energy");
+        let dim = potential.dim();
+        let zero = FMatrix::zeros(dim, dim);
+
+        Self {
+            potential,
+            particles,
+            energy,
+            mass,
+
+            r: 0.0,
+            dr: 0.0,
+            psi1: zero,
+            psi2: zero,
+
+            f1: zero,
+            f2: zero,
+            f3: zero,
+
+            identity: FMatrix::identity(dim, dim),
+            current_g_func: zero,
+
+            doubled_step_before: false,
+            is_set_up: false,
+            step_factor,
+        }
+    }
+}
+
+impl RatioNumerov<CMatrix, Rc<dyn MultiCPotential>>
+{
+    /// Creates a new instance of the RatioNumerov struct
+    pub fn new_multi_c(particles: Rc<Particles>, potential: Rc<dyn MultiCPotential>, step_factor: f64) -> Self {
+        let mass = particles.red_mass();
+        let energy = particles.internals.get_value("energy");
+        let dim = potential.dim();
+        let zero = CMatrix::zeros(dim, dim);
+
+        Self {
+            potential,
+            particles,
+            energy,
+            mass,
+
+            r: 0.0,
+            dr: 0.0,
+            psi1: zero,
+            psi2: zero,
+
+            f1: zero,
+            f2: zero,
+            f3: zero,
+
+            identity: CMatrix::identity(dim, dim),
+            current_g_func: zero,
+
+            doubled_step_before: false,
+            is_set_up: false,
+            step_factor,
+        }
+    }
+}
+
+
+impl RatioNumerov<f64, Rc<dyn OnePotential>>
 {
     /// Returns the g function described in the Numerov method at position r
     #[inline(always)]
     fn g_func(&mut self, &r: &f64) -> f64 {
-        2.0 * self.mass * (self.energy - self.collision_params.potential.value(&r))
+        2.0 * self.mass * (self.energy - self.potential.value(&r))
     }
 }
 
-impl<'a, P> MultiStep<P> for RatioNumerov<'a, f64, P>
-where
-    P: Potential<Space = f64>,
+impl MultiStep for RatioNumerov<f64, Rc<dyn OnePotential>>
 {
     fn variable_step(&mut self) {
         self.current_g_func = self.g_func(&(self.r + self.dr));
@@ -158,9 +219,7 @@ where
     }
 }
 
-impl<'a, P> Numerov<f64, P> for RatioNumerov<'a, f64, P>
-where
-    P: Potential<Space = f64>,
+impl Numerov<f64> for RatioNumerov<f64, Rc<dyn OnePotential>>
 {
     fn prepare(&mut self, boundary: &Boundary<f64>) {
         self.r = boundary.r_start;
@@ -220,20 +279,16 @@ where
     }
 }
 
-impl<'a, const N: usize, P> RatioNumerov<'a, FMatrix<N>, P>
-where
-    P: Potential<Space = FMatrix<N>>,
+impl RatioNumerov<FMatrix, Rc<dyn MultiPotential>>
 {
     /// Returns the g function described in the Numerov method at position r
     #[inline(always)]
-    fn g_func(&mut self, &r: &f64) -> FMatrix<N> {
-        2.0 * self.mass * (self.energy * self.identity - self.collision_params.potential.value(&r))
+    fn g_func(&mut self, &r: &f64) -> FMatrix {
+        2.0 * self.mass * (self.energy * self.identity - self.potential.value(&r))
     }
 }
 
-impl<'a, const N: usize, P> MultiStep<P> for RatioNumerov<'a, FMatrix<N>, P>
-where
-    P: Potential<Space = FMatrix<N>>,
+impl MultiStep for RatioNumerov<FMatrix, Rc<dyn MultiPotential>>
 {
     fn variable_step(&mut self) {
         self.current_g_func = self.g_func(&(self.r + self.dr));
@@ -312,11 +367,9 @@ where
     }
 }
 
-impl<'a, const N: usize, P> Numerov<FMatrix<N>, P> for RatioNumerov<'a, FMatrix<N>, P>
-where
-    P: Potential<Space = FMatrix<N>>,
+impl Numerov<FMatrix> for RatioNumerov<FMatrix, Rc<dyn MultiPotential>>
 {
-    fn prepare(&mut self, boundary: &Boundary<FMatrix<N>>) {
+    fn prepare(&mut self, boundary: &Boundary<FMatrix>) {
         self.r = boundary.r_start;
 
         self.current_g_func = self.g_func(&boundary.r_start);
@@ -339,7 +392,7 @@ where
         }
     }
 
-    fn propagate_values(&mut self, r: f64, wave_init: FMatrix<N>) -> (Vec<f64>, Vec<FMatrix<N>>) {
+    fn propagate_values(&mut self, r: f64, wave_init: FMatrix) -> (Vec<f64>, Vec<FMatrix>) {
         assert!(self.is_set_up, "Numerov method not set up");
         let max_capacity: usize = 1000;
         let r_push_step = (r - self.r) / max_capacity as f64;
@@ -365,7 +418,7 @@ where
         (positions, wave_functions)
     }
 
-    fn result(&self) -> NumerovResult<FMatrix<N>> {
+    fn result(&self) -> NumerovResult<FMatrix> {
         NumerovResult {
             r_last: self.r,
             dr: self.dr,
@@ -374,20 +427,15 @@ where
     }
 }
 
-impl<'a, const N: usize, P> RatioNumerov<'a, CMatrix<N>, P>
-where
-    P: Potential<Space = CMatrix<N>>,
+impl RatioNumerov<CMatrix, Rc<dyn MultiCPotential>>
 {
     /// Returns the g function described in the Numerov method at position r
-    fn g_func(&mut self, &r: &f64) -> CMatrix<N> {
-        (self.identity * Complex64::from(self.energy) - self.collision_params.potential.value(&r))
-            * Complex64::from(2.0 * self.mass)
+    fn g_func(&mut self, &r: &f64) -> CMatrix {
+        (self.identity * Complex64::from(self.energy) - self.potential.value(&r)) * Complex64::from(2.0 * self.mass)
     }
 }
 
-impl<'a, const N: usize, P> MultiStep<P> for RatioNumerov<'a, CMatrix<N>, P>
-where
-    P: Potential<Space = CMatrix<N>>,
+impl MultiStep for RatioNumerov<CMatrix, Rc<dyn MultiCPotential>>
 {
     fn variable_step(&mut self) {
         self.current_g_func = self.g_func(&(self.r + self.dr));
@@ -470,11 +518,9 @@ where
     }
 }
 
-impl<'a, const N: usize, P> Numerov<CMatrix<N>, P> for RatioNumerov<'a, CMatrix<N>, P>
-where
-    P: Potential<Space = CMatrix<N>>,
+impl Numerov<CMatrix> for RatioNumerov<CMatrix, Rc<dyn MultiCPotential>>
 {
-    fn prepare(&mut self, boundary: &Boundary<CMatrix<N>>) {
+    fn prepare(&mut self, boundary: &Boundary<CMatrix>) {
         self.r = boundary.r_start;
 
         self.current_g_func = self.g_func(&boundary.r_start);
@@ -499,7 +545,7 @@ where
         }
     }
 
-    fn propagate_values(&mut self, r: f64, wave_init: CMatrix<N>) -> (Vec<f64>, Vec<CMatrix<N>>) {
+    fn propagate_values(&mut self, r: f64, wave_init: CMatrix) -> (Vec<f64>, Vec<CMatrix>) {
         assert!(self.is_set_up, "Numerov method not set up");
 
         let max_capacity: usize = 1000;
@@ -526,7 +572,7 @@ where
         (positions, wave_functions)
     }
 
-    fn result(&self) -> NumerovResult<CMatrix<N>> {
+    fn result(&self) -> NumerovResult<CMatrix> {
         NumerovResult {
             r_last: self.r,
             dr: self.dr,

@@ -1,6 +1,6 @@
-use crate::{boundary::Boundary, potentials::potential::Potential};
+use crate::boundary::Boundary;
 
-pub(super) trait MultiStep<P: Potential> {
+pub(super) trait MultiStep {
     /// Performs a step with the same step size
     fn step(&mut self);
 
@@ -29,7 +29,7 @@ pub struct NumerovResult<T> {
 }
 
 /// A trait for Numerov propagator
-pub trait Numerov<T, P: Potential<Space = T>> {
+pub trait Numerov<T> {
     /// Prepares the propagator for a new propagation
     /// starting from position r and with a boundary condition
     /// `psi(r) = boundary.0` and `psi(r - dr) = boundary.1`

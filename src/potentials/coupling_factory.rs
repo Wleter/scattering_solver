@@ -1,17 +1,11 @@
 use super::{
     coupled_potential::CoupledPotential, multi_coupling::MultiCoupling,
-    multi_diag_potential::MultiDiagPotential, potential::Potential,
+    multi_diag_potential::MultiDiagPotential, potential::OnePotential,
 };
 
-pub fn couple_neighbors<const N: usize, P, C>(
-    couplings: Vec<C>,
-    potentials: [P; N],
-) -> CoupledPotential<N, MultiDiagPotential<N, P>, MultiCoupling<N, C>>
-where
-    P: Potential<Space = f64>,
-    C: Potential<Space = f64>,
+pub fn couple_neighbors(couplings: Vec<Box<dyn OnePotential>>, potentials: Vec<Box<dyn OnePotential>>) -> CoupledPotential
 {
-    assert!(couplings.len() + 1 == N);
+    assert!(couplings.len() + 1 == potentials.len());
 
     let numbered_potentials = couplings
         .into_iter()
@@ -19,7 +13,7 @@ where
         .map(|(i, potential)| (potential, i, i + 1))
         .collect();
 
-    let couplings = MultiCoupling::new(numbered_potentials, true);
+    let couplings = MultiCoupling::new(numbered_potentials, potentials.len(), true);
     let potential = MultiDiagPotential::new(potentials);
 
     CoupledPotential::new(potential, couplings)

@@ -8,7 +8,7 @@ use scattering_solver::{
     observables::{observable_extractor::ObservableExtractor, s_matrix::HasSMatrix},
     potentials::{
         coupling_factory::couple_neighbors, gaussian_coupling::GaussianCoupling,
-        potential::Potential, potential_factory::create_lj,
+        potential::{Potential, MultiPotential}, potential_factory::create_lj,
     }, types::FMatrix,
 };
 
@@ -28,9 +28,10 @@ fn test_two_channel() {
     let coupled_potential = couple_neighbors(vec![coupling], [potential_lj1, potential_lj2]);
     
     let collision_params = CollisionParams::new(particles, coupled_potential);
+    let dim = collision_params.potential.dim();
 
-    let mut numerov = RatioNumerov::new(&collision_params, 1.0);
-    numerov.prepare(&Boundary::new(6.5, MultiDefaults::boundary()));
+    let mut numerov = RatioNumerov::new_single(&collision_params, 1.0);
+    numerov.prepare(&Boundary::new(6.5, MultiDefaults::boundary(dim)));
     numerov.propagate_to(1000.0);
     let result = numerov.result();
 
@@ -39,7 +40,7 @@ fn test_two_channel() {
 
     let asymptotic_states = AsymptoticStates {
         energies: vec![asymptotic[(0, 0)], asymptotic[(1, 1)]],
-        eigenvectors: FMatrix::<2>::identity(),
+        eigenvectors: FMatrix::identity(dim, dim),
         entrance_channel: 0,
     };
     let l = collision_params.particles.internals.get_value("l") as usize;

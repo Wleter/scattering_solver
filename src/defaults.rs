@@ -14,14 +14,14 @@ impl SingleDefaults {
 }
 
 impl MultiDefaults {
-    pub fn boundary<const N: usize>() -> (FMatrix<N>, FMatrix<N>) {
+    pub fn boundary(dim: usize) -> (FMatrix, FMatrix) {
         (
-            FMatrix::<N>::from_diagonal_element(1.1),
-            FMatrix::<N>::from_diagonal_element(1.11),
+            FMatrix::from_diagonal_element(dim, dim, 1.1),
+            FMatrix::from_diagonal_element(dim, dim, 1.11),
         )
     }
 
-    pub fn init_wave<const N: usize>() -> FMatrix<N> {
-        FMatrix::<N>::from_diagonal_element(1e-50)
+    pub fn init_wave(dim: usize) -> FMatrix {
+        FMatrix::from_diagonal_element(dim, dim, 1e-50)
     }
 }

@@ -1,27 +1,32 @@
 use crate::types::FMatrix;
 
-use super::potential::Potential;
+use super::potential::{OnePotential, MultiPotential};
 
-#[derive(Debug, Clone)]
-pub struct MultiDiagPotential<const N: usize, P: Potential> {
-    potentials: [P; N],
+#[derive(Clone)]
+pub struct MultiDiagPotential {
+    potentials: Vec<Box<dyn OnePotential>>,
+    dim: usize,
 }
 
-impl<const N: usize, P: Potential> MultiDiagPotential<N, P> {
-    pub fn new(potentials: [P; N]) -> Self {
-        Self { potentials }
+impl MultiDiagPotential {
+    pub fn new(potentials: Vec<Box<dyn OnePotential>>) -> Self {
+        let dim = potentials.len();
+        Self { 
+            potentials, 
+            dim,
+        }
     }
 }
 
-impl<const N: usize, P> Potential for MultiDiagPotential<N, P>
-where
-    P: Potential<Space = f64>,
+impl MultiPotential for MultiDiagPotential
 {
-    type Space = FMatrix<N>;
+    fn dim(&self) -> usize {
+        self.dim
+    }
 
     #[inline(always)]
-    fn value(&self, r: &f64) -> Self::Space {
-        let mut value_array = FMatrix::<N>::zeros();
+    fn value(&self, r: &f64) -> FMatrix {
+        let mut value_array = FMatrix::zeros(self.dim, self.dim);
         for (i, potential) in self.potentials.iter().enumerate() {
             value_array[(i, i)] = potential.value(r);
         }

@@ -1,39 +1,32 @@
 use crate::types::FMatrix;
 
-use super::potential::Potential;
+use super::potential::MultiPotential;
 
 #[derive(Clone)]
-pub struct CoupledPotential<const N: usize, P, C>
-where
-    P: Potential<Space = FMatrix<N>>,
-    C: Potential<Space = FMatrix<N>>,
+pub struct CoupledPotential
 {
-    potential: P,
-    coupling: C,
+    potential: Box<dyn MultiPotential>,
+    coupling: Box<dyn MultiPotential>,
 }
 
-impl<const N: usize, P, C> CoupledPotential<N, P, C>
-where
-    P: Potential<Space = FMatrix<N>>,
-    C: Potential<Space = FMatrix<N>>,
+impl CoupledPotential
 {
-    pub fn new(potential: P, coupling: C) -> Self {
+    pub fn new(potential: impl MultiPotential, coupling: impl MultiPotential) -> Self {
         Self {
-            potential,
-            coupling,
+            potential: Box::new(potential),
+            coupling: Box::new(coupling),
         }
     }
 }
 
-impl<const N: usize, P, C> Potential for CoupledPotential<N, P, C>
-where
-    P: Potential<Space = FMatrix<N>>,
-    C: Potential<Space = FMatrix<N>>,
+impl MultiPotential for CoupledPotential
 {
-    type Space = FMatrix<N>;
-
+    fn dim(&self) -> usize {
+        self.potential.dim()
+    }
+    
     #[inline(always)]
-    fn value(&self, r: &f64) -> Self::Space {
+    fn value(&self, r: &f64) -> FMatrix {
         self.potential.value(r) + self.coupling.value(r)
     }
 }

@@ -1,32 +1,32 @@
+use std::rc::Rc;
+
 use nalgebra::DMatrix;
 use num::complex::Complex64;
+use quantum::particles::Particles;
 
 use crate::{
     asymptotic_states::AsymptoticStates,
-    collision_params::CollisionParams,
     numerovs::propagator::NumerovResult,
-    potentials::potential::Potential,
+    potentials::potential::{OnePotential, MultiPotential},
     types::FMatrix,
     utility::{asymptotic_bessel_j, asymptotic_bessel_n, bessel_j_ratio, bessel_n_ratio},
 };
 
 use super::s_matrix::{MultiChanSMatrix, OneChanSMatrix};
 
-pub struct ObservableExtractor<'a, T, P>
-where
-    P: Potential<Space = T>,
+pub struct ObservableExtractor<T, P>
 {
-    collision_params: &'a CollisionParams<P>,
+    particles: Rc<Particles>,
+    potential: P,
     result: NumerovResult<T>,
 }
 
-impl<'a, T, P> ObservableExtractor<'a, T, P>
-where
-    P: Potential<Space = T>,
+impl<T, P> ObservableExtractor<T, P>
 {
-    pub fn new(collision_params: &'a CollisionParams<P>, result: NumerovResult<T>) -> Self {
+    pub fn new(particles: Rc<Particles>, potential: P, result: NumerovResult<T>) -> Self {
         Self {
-            collision_params,
+            particles,
+            potential,
             result,
         }
     }
@@ -36,21 +36,17 @@ where
     }
 }
 
-impl<'a, P> ObservableExtractor<'a, f64, P>
-where
-    P: Potential<Space = f64>,
+impl ObservableExtractor<f64, Rc<dyn OnePotential>>
 {
     pub fn calculate_s_matrix(&mut self, l: usize, asymptotic: f64) -> OneChanSMatrix {
         let r_last = self.result.r_last;
         let r_prev_last = self.result.r_last - self.result.dr;
         let wave_ratio = self.result.wave_ratio;
 
-        let energy = self
-            .collision_params
-            .particles
+        let energy = self.particles
             .internals
             .get_value("energy");
-        let mass = self.collision_params.particles.red_mass();
+        let mass = self.particles.red_mass();
 
         let momentum = (2.0 * mass * (energy - asymptotic)).sqrt();
         assert!(momentum.is_nan() == false, "channel is closed, no S-Matrix");
@@ -68,25 +64,23 @@ where
     }
 }
 
-impl<'a, const N: usize, P> ObservableExtractor<'a, FMatrix<N>, P>
-where
-    P: Potential<Space = FMatrix<N>>,
+impl ObservableExtractor<FMatrix, Rc<dyn MultiPotential>>
 {
     pub fn calculate_s_matrix(
         &mut self,
         l: usize,
-        asymptotic: &AsymptoticStates<N>,
+        asymptotic: &AsymptoticStates,
     ) -> MultiChanSMatrix {
         let r_last = self.result.r_last;
         let r_prev_last = self.result.r_last - self.result.dr;
-        let wave_ratio = self.result.wave_ratio;
+        let wave_ratio = self.result.wave_ratio.clone();
+        let dim = self.potential.dim();
 
         let energy = self
-            .collision_params
             .particles
             .internals
             .get_value("energy");
-        let mass = self.collision_params.particles.red_mass();
+        let mass = self.particles.red_mass();
 
         let is_open_channel = asymptotic
             .energies
@@ -99,12 +93,12 @@ where
             .map(|val| (2.0 * mass * (energy - val).abs()).sqrt())
             .collect();
 
-        let mut j_last = FMatrix::<N>::zeros();
-        let mut j_prev_last = FMatrix::<N>::zeros();
-        let mut n_last = FMatrix::<N>::zeros();
-        let mut n_prev_last = FMatrix::<N>::zeros();
+        let mut j_last = FMatrix::zeros(dim, dim);
+        let mut j_prev_last = FMatrix::zeros(dim, dim);
+        let mut n_last = FMatrix::zeros(dim, dim);
+        let mut n_prev_last = FMatrix::zeros(dim, dim);
 
-        for i in 0..N {
+        for i in 0..dim {
             let momentum = momenta[i];
             if is_open_channel[i] {
                 j_last[(i, i)] = asymptotic_bessel_j(momentum * r_last, l);
@@ -118,10 +112,10 @@ where
                 n_prev_last[(i, i)] = 1.0;
             }
         }
-        let wave_transf = asymptotic.eigenvectors.transpose() * wave_ratio * asymptotic.eigenvectors;
+        let wave_transf = asymptotic.eigenvectors.transpose() * wave_ratio * &asymptotic.eigenvectors;
 
-        let k_matrix = -(wave_transf * n_prev_last - n_last).try_inverse().unwrap()
-            * (wave_transf * j_prev_last - j_last);
+        let k_matrix = -(&wave_transf * n_prev_last - n_last).try_inverse().unwrap()
+            * (&wave_transf * j_prev_last - j_last);
 
         let open_channel_count = is_open_channel.iter().filter(|val| **val).count();
         let mut red_ik_matrix = DMatrix::<Complex64>::zeros(open_channel_count, open_channel_count);

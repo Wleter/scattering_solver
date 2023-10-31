@@ -1,30 +1,29 @@
-use super::potential::Potential;
+use super::potential::OnePotential;
 
 /// Composite potential that has value equal to the sum of its components
-#[derive(Debug, Clone)]
-pub struct CompositePotential<P: Potential> {
-    potentials: Vec<P>,
+#[derive(Clone)]
+pub struct CompositePotential {
+    potentials: Vec<Box<dyn OnePotential>>,
 }
 
-impl<P: Potential> CompositePotential<P> {
+impl CompositePotential {
     pub fn new() -> Self {
         Self {
             potentials: Vec::new(),
         }
     }
 
-    pub fn add_potential(&mut self, potential: P) -> &mut Self {
+    pub fn add_potential(&mut self, potential: impl OnePotential) -> &mut Self { 
+        let potential: Box<dyn OnePotential> = Box::new(potential);        
         self.potentials.push(potential);
 
         self
     }
 }
 
-impl<P: Potential> Potential for CompositePotential<P> {
-    type Space = P::Space;
-
+impl OnePotential for CompositePotential {
     #[inline(always)]
-    fn value(&self, r: &f64) -> Self::Space {
+    fn value(&self, r: &f64) -> f64 {
         self.potentials.iter().map(|p| p.value(r)).sum()
     }
 }

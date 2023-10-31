@@ -15,7 +15,7 @@ use scattering_solver::{
     observables::{
         dependencies::SingleDependencies, observable_extractor::ObservableExtractor, s_matrix::HasSMatrix,
     },
-    potentials::{potential::Potential, potential_factory::create_lj},
+    potentials::{potential::{Potential, OnePotential}, potential_factory::create_lj},
     utility::linspace,
 };
 
@@ -45,7 +45,7 @@ impl ProblemSelector for SingleChannel {
 }
 
 impl SingleChannel {
-    fn create_collision_params() -> CollisionParams<impl Potential<Space = f64>> {
+    fn create_collision_params() -> (Particles, impl OnePotential) {
         let particle1 = create_atom("Li6").unwrap();
         let particle2 = create_atom("Li7").unwrap();
         let energy = EnergyUnit::Kelvin.to_au(1e-7);
@@ -55,15 +55,15 @@ impl SingleChannel {
 
         let potential = create_lj(0.002, 9.0, 0.0);
 
-        CollisionParams::new(particles, potential)
+        (particles, potential)
     }
 
     fn wave_function() {
         println!("Calculating wave function...");
         let start = Instant::now();
 
-        let collision_params = Self::create_collision_params();
-        let mut numerov = RatioNumerov::new(&collision_params, 1.0);
+        let (particles, potential) = Self::create_collision_params();
+        let mut numerov = RatioNumerov::new_single(&particles, potential, 1.0);
 
         let preparation = start.elapsed();
 
@@ -73,7 +73,7 @@ impl SingleChannel {
 
         let potential_values: Vec<f64> = rs
             .iter()
-            .map(|r| numerov.collision_params.potential.value(r))
+            .map(|r| numerov.potential.value(r))
             .collect();
 
         let header = vec!["position", "wave function", "potential"];
@@ -93,8 +93,8 @@ impl SingleChannel {
         println!("Calculating scattering length...");
         let start = Instant::now();
 
-        let collision_params = Self::create_collision_params();
-        let mut numerov = RatioNumerov::new(&collision_params, 1.0);
+        let (particles, potential) = Self::create_collision_params();
+        let mut numerov = RatioNumerov::new_single(&particles, potential, 1.0);
 
         let preparation = start.elapsed();
 
@@ -104,7 +104,7 @@ impl SingleChannel {
 
         let propagation = start.elapsed() - preparation;
 
-        let mut observable_extractor = ObservableExtractor::new(&collision_params, result);
+        let mut observable_extractor = ObservableExtractor::new(&particles, potential, result);
 
         let asymptotic = collision_params.potential.asymptotic_value();
         let l = collision_params.particles.internals.get_value("l") as usize;
@@ -123,12 +123,13 @@ impl SingleChannel {
     fn propagation_distance() {
         println!("Calculating scattering length distance dependence...");
 
-        let collision_params = Self::create_collision_params();
+        let (particles, potential) = Self::create_collision_params();
 
         let distances = linspace(100.0, 1e4, 1000);
         let (rs, scatterings) = SingleDependencies::propagation_distance(
             distances,
-            collision_params,
+            particles,
+            potential,
             Boundary::new(6.5, SingleDefaults::boundary()),
         );
 
@@ -145,20 +146,22 @@ impl SingleChannel {
     fn mass_scaling() {
         println!("Calculating scattering length vs mass scaling...");
 
-        let collision_params = Self::create_collision_params();
+        let (particles, potential) = Self::create_collision_params();
 
         let scalings = linspace(0.8, 1.2, 1000);
         fn change_function(
             scaling: &f64,
-            params: &mut CollisionParams<impl Potential>,
+            particles: &mut Particles,
+            _potential: &mut impl OnePotential,
         ) {
-            params.particles.scale_red_mass(*scaling);
+            particles.scale_red_mass(*scaling);
         }
 
         let scatterings = SingleDependencies::params_change(
             &scalings,
             change_function,
-            collision_params,
+            particles,
+            potential,
             Boundary::new(6.5, SingleDefaults::boundary()),
             1e4,
         );

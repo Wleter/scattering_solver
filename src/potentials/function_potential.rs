@@ -1,31 +1,24 @@
-use std::iter::Sum;
-
-use num_traits::{One, Zero};
-
-use super::potential::Potential;
+use super::potential::OnePotential;
 
 /// Potential that gives `value` according to provided function.
 #[derive(Clone)]
-pub struct FunctionPotential<T: Clone, F: Fn(&f64) -> T> {
+pub struct FunctionPotential<F: Fn(&f64) -> f64> {
     function: F,
 }
 
-impl<T: Clone, F: Fn(&f64) -> T> FunctionPotential<T, F> {
+impl<F: Fn(&f64) -> f64> FunctionPotential<F> {
     /// Creates new function potential with given function.
     pub fn new(function: F) -> Self {
         Self { function }
     }
 }
 
-impl<T, F> Potential for FunctionPotential<T, F>
+impl<F> OnePotential for FunctionPotential<F>
 where
-    T: Clone + One + Zero + Sum,
-    F: Fn(&f64) -> T + Clone,
+    F: Fn(&f64) -> f64 + Clone,
 {
-    type Space = T;
-
     #[inline(always)]
-    fn value(&self, r: &f64) -> Self::Space {
+    fn value(&self, r: &f64) -> f64 {
         (self.function)(r)
     }
 }

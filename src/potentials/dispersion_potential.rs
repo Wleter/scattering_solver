@@ -1,4 +1,4 @@
-use super::potential::Potential;
+use super::potential::OnePotential;
 
 /// Potential of the form d0 * r^n + v0
 #[derive(Debug, Clone)]
@@ -14,9 +14,7 @@ impl DispersionPotential {
     }
 }
 
-impl Potential for DispersionPotential {
-    type Space = f64;
-
+impl OnePotential for DispersionPotential {
     #[inline(always)]
     fn value(&self, r: &f64) -> f64 {
         self.d0 * r.powi(self.n) + self.v0

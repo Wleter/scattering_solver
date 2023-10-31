@@ -1,4 +1,4 @@
-use super::potential::Potential;
+use super::potential::OnePotential;
 
 /// Gaussian coupling potential
 #[derive(Clone)]
@@ -19,9 +19,7 @@ impl GaussianCoupling {
     }
 }
 
-impl Potential for GaussianCoupling {
-    type Space = f64;
-
+impl OnePotential for GaussianCoupling {
     #[inline(always)]
     fn value(&self, r: &f64) -> f64 {
         self.strength * (-((r - self.center) / self.width).powi(2) / 2.0).exp()

@@ -60,13 +60,14 @@ impl TwoChannel {
         let start = Instant::now();
 
         let collision_params = Self::create_collision_params();
-        let mut numerov = RatioNumerov::new(&collision_params, 1.0);
+        let dim = collision_params.particles.dim();
+        let mut numerov = RatioNumerov::new_single(&collision_params, 1.0);
 
         let preparation = start.elapsed();
 
-        numerov.prepare(&Boundary::new(6.5, MultiDefaults::boundary()));
+        numerov.prepare(&Boundary::new(6.5, MultiDefaults::boundary(dim)));
 
-        let (rs, waves) = numerov.propagate_values(100.0, MultiDefaults::init_wave());
+        let (rs, waves) = numerov.propagate_values(100.0, MultiDefaults::init_wave(dim));
         let propagation = start.elapsed() - preparation;
 
         let header = vec!["position", "channel 1", "channel 2"];
@@ -86,11 +87,12 @@ impl TwoChannel {
         let start = Instant::now();
 
         let collision_params = Self::create_collision_params();
-        let mut numerov = RatioNumerov::new(&collision_params, 1.0);
+        let dim = collision_params.particles.dim();
+        let mut numerov = RatioNumerov::new_single(&collision_params, 1.0);
 
         let preparation = start.elapsed();
 
-        numerov.prepare(&Boundary::new(6.5, MultiDefaults::boundary()));
+        numerov.prepare(&Boundary::new(6.5, MultiDefaults::boundary(dim)));
         numerov.propagate_to(1000.0);
         let result = numerov.result();
 
@@ -101,7 +103,7 @@ impl TwoChannel {
 
         let asymptotic_states = AsymptoticStates {
             energies: vec![asymptotic[(0, 0)], asymptotic[(1, 1)]],
-            eigenvectors: FMatrix::<2>::identity(),
+            eigenvectors: FMatrix::identity(2, 2),
             entrance_channel: 0,
         };
         let l = collision_params.particles.internals.get_value("l") as usize;
@@ -121,6 +123,7 @@ impl TwoChannel {
         println!("Calculating scattering length vs mass scaling...");
 
         let collision_params = Self::create_collision_params();
+        let dim = collision_params.particles.dim();
 
         let scalings = linspace(0.8, 1.2, 1000);
         fn change_function(
@@ -133,7 +136,7 @@ impl TwoChannel {
         let asymptotic = collision_params.potential.asymptotic_value();
         let asymptotic_states = AsymptoticStates {
             energies: vec![asymptotic[(0, 0)], asymptotic[(1, 1)]],
-            eigenvectors: FMatrix::<2>::identity(),
+            eigenvectors: FMatrix::identity(dim, dim),
             entrance_channel: 0,
         };
 
@@ -141,7 +144,7 @@ impl TwoChannel {
             &scalings,
             change_function,
             collision_params,
-            Boundary::new(6.5, MultiDefaults::boundary()),
+            Boundary::new(6.5, MultiDefaults::boundary(dim)),
             asymptotic_states,
             0,
             1e3,
