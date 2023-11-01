@@ -64,7 +64,7 @@ impl ManyChannels {
         let collision_params = Self::create_collision_params::<N>();
         let mut numerov = RatioNumerov::new(&collision_params, 1.0);
 
-        let energies = linspace(0.0019, 0.0022, 50)
+        let energies = linspace(0.0019, 0.0022, N)
             .iter()
             .map(|well| EnergyUnit::Kelvin.to_au(well / 0.0019 - 1.0))
             .collect();
