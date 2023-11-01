@@ -379,6 +379,7 @@ where
     P: Potential<Space = CMatrix<N>>,
 {
     /// Returns the g function described in the Numerov method at position r
+    #[inline(always)]
     fn g_func(&mut self, &r: &f64) -> CMatrix<N> {
         (self.identity * Complex64::from(self.energy) - self.collision_params.potential.value(&r))
             * Complex64::from(2.0 * self.mass)

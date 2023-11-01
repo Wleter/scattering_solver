@@ -46,7 +46,10 @@ fn test_two_channel() {
 
     let s_matrix = observable_extractor.calculate_s_matrix(l, &asymptotic_states);
     let scattering_length = s_matrix.get_scattering_length(0);
+    println!("scattering length: {:.8e}", scattering_length);
 
-    assert!(scattering_length.re < -13.0);
-    assert!(scattering_length.re > -13.2);
+    assert!(scattering_length.re > -13.137721);
+    assert!(scattering_length.re < -13.137720);
+    assert!(scattering_length.im > -8.7271219e-13);
+    assert!(scattering_length.im < -8.7271218e-13);
 }
