@@ -90,7 +90,7 @@ where
 {
     fn variable_step(&mut self) {
         self.current_g_func = self.g_func(&(self.r + self.dr));
-        
+
         let step_size = self.recommended_step_size();
         if step_size > 2.0 * self.dr.abs() && !self.doubled_step_before {
             self.doubled_step_before = true;
@@ -103,14 +103,13 @@ where
                 self.half_step();
                 halved = true;
             }
-            
+
             if halved {
                 self.current_g_func = self.g_func(&(self.r + self.dr));
             }
         }
 
         self.step();
-
     }
 
     fn step(&mut self) {
@@ -237,7 +236,7 @@ where
 {
     fn variable_step(&mut self) {
         self.current_g_func = self.g_func(&(self.r + self.dr));
-        
+
         let step_size = self.recommended_step_size();
         if step_size > 2.0 * self.dr && !self.doubled_step_before {
             self.doubled_step_before = true;
@@ -253,11 +252,9 @@ where
             if halved {
                 self.current_g_func = self.g_func(&(self.r + self.dr));
             }
-            
         }
-        
-        self.step();
 
+        self.step();
     }
 
     fn step(&mut self) {

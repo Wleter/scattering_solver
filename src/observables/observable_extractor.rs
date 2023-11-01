@@ -118,7 +118,8 @@ where
                 n_prev_last[(i, i)] = 1.0;
             }
         }
-        let wave_transf = asymptotic.eigenvectors.transpose() * wave_ratio * asymptotic.eigenvectors;
+        let wave_transf =
+            asymptotic.eigenvectors.transpose() * wave_ratio * asymptotic.eigenvectors;
 
         let k_matrix = -(wave_transf * n_prev_last - n_last).try_inverse().unwrap()
             * (wave_transf * j_prev_last - j_last);

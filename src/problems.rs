@@ -2,11 +2,11 @@ use std::collections::VecDeque;
 
 use quantum::problem_selector::ProblemSelector;
 
-use self::{single_channel::SingleChannel, two_channel::TwoChannel, many_channels::ManyChannels};
+use self::{many_channels::ManyChannels, single_channel::SingleChannel, two_channel::TwoChannel};
 
+pub mod many_channels;
 pub mod single_channel;
 pub mod two_channel;
-pub mod many_channels;
 
 pub struct Problems {}
 

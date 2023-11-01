@@ -20,7 +20,7 @@ impl<T: Clone, F: Fn(&f64) -> T> FunctionPotential<T, F> {
 impl<T, F> Potential for FunctionPotential<T, F>
 where
     T: Clone + One + Zero + Sum,
-    F: Fn(&f64) -> T + Clone,
+    F: Fn(&f64) -> T + Clone + Send + Sync,
 {
     type Space = T;
 

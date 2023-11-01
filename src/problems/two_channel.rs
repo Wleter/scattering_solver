@@ -1,8 +1,11 @@
 use std::{collections::VecDeque, time::Instant};
 
 use quantum::{
-    particle_factory::create_atom, particles::Particles, problem_selector::ProblemSelector,
-    saving::{save_param_change, save_param_change_complex}, units::energy_units::EnergyUnit,
+    particle_factory::create_atom,
+    particles::Particles,
+    problem_selector::ProblemSelector,
+    saving::{save_param_change, save_param_change_complex},
+    units::energy_units::EnergyUnit,
 };
 use scattering_solver::{
     asymptotic_states::AsymptoticStates,
@@ -10,12 +13,16 @@ use scattering_solver::{
     collision_params::CollisionParams,
     defaults::MultiDefaults,
     numerovs::{propagator::Numerov, ratio_numerov::RatioNumerov},
-    observables::{observable_extractor::ObservableExtractor, s_matrix::HasSMatrix, dependencies::MultiDependencies},
+    observables::{
+        dependencies::MultiDependencies, observable_extractor::ObservableExtractor,
+        s_matrix::HasSMatrix,
+    },
     potentials::{
         coupling_factory::couple_neighbors, gaussian_coupling::GaussianCoupling,
         potential::Potential, potential_factory::create_lj,
     },
-    types::FMatrix, utility::linspace,
+    types::FMatrix,
+    utility::linspace,
 };
 
 pub struct TwoChannel {}
@@ -123,10 +130,7 @@ impl TwoChannel {
         let collision_params = Self::create_collision_params();
 
         let scalings = linspace(0.8, 1.2, 1000);
-        fn change_function(
-            scaling: &f64,
-            params: &mut CollisionParams<impl Potential>,
-        ) {
+        fn change_function(scaling: &f64, params: &mut CollisionParams<impl Potential>) {
             params.particles.scale_red_mass(*scaling);
         }
 
@@ -137,7 +141,7 @@ impl TwoChannel {
             entrance_channel: 0,
         };
 
-        let scatterings = MultiDependencies::params_change(
+        let scatterings = MultiDependencies::params_change_par(
             &scalings,
             change_function,
             collision_params,
@@ -153,7 +157,6 @@ impl TwoChannel {
             "scattering length imag",
         ];
 
-        save_param_change_complex("two_chan/mass_scaling", scalings, scatterings, header)
-            .unwrap();
+        save_param_change_complex("two_chan/mass_scaling", scalings, scatterings, header).unwrap();
     }
 }

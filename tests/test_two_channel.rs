@@ -1,4 +1,6 @@
-use quantum::{units::energy_units::EnergyUnit, particle_factory::create_atom, particles::Particles,};
+use quantum::{
+    particle_factory::create_atom, particles::Particles, units::energy_units::EnergyUnit,
+};
 use scattering_solver::{
     asymptotic_states::AsymptoticStates,
     boundary::Boundary,
@@ -9,7 +11,8 @@ use scattering_solver::{
     potentials::{
         coupling_factory::couple_neighbors, gaussian_coupling::GaussianCoupling,
         potential::Potential, potential_factory::create_lj,
-    }, types::FMatrix,
+    },
+    types::FMatrix,
 };
 
 #[test]
@@ -26,7 +29,7 @@ fn test_two_channel() {
 
     let coupling = GaussianCoupling::new(EnergyUnit::Kelvin.to_au(10.0), 11.0, 2.0);
     let coupled_potential = couple_neighbors(vec![coupling], [potential_lj1, potential_lj2]);
-    
+
     let collision_params = CollisionParams::new(particles, coupled_potential);
 
     let mut numerov = RatioNumerov::new(&collision_params, 1.0);

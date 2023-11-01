@@ -14,7 +14,9 @@ use scattering_solver::{
     potentials::{
         coupling_factory::couple_neighbors, gaussian_coupling::GaussianCoupling,
         potential::Potential, potential_factory::create_lj,
-    }, types::FMatrix, utility::linspace,
+    },
+    types::FMatrix,
+    utility::linspace,
 };
 
 pub struct ManyChannels {}
@@ -35,7 +37,8 @@ impl ProblemSelector for ManyChannels {
 }
 
 impl ManyChannels {
-    fn create_collision_params<const N: usize>() -> CollisionParams<impl Potential<Space = FMatrix<N>>> {
+    fn create_collision_params<const N: usize>(
+    ) -> CollisionParams<impl Potential<Space = FMatrix<N>>> {
         let particle1 = create_atom("Li6").unwrap();
         let particle2 = create_atom("Li7").unwrap();
         let energy = EnergyUnit::Kelvin.to_au(1e-7);
@@ -44,9 +47,10 @@ impl ManyChannels {
         particles.internals.insert_value("l", 0.0);
 
         let wells: [f64; N] = linspace(0.0019, 0.0022, N).try_into().unwrap();
-        let potentials = wells.map(|well| create_lj(well, 9.0, EnergyUnit::Kelvin.to_au(well / 0.0019 - 1.0)));
+        let potentials =
+            wells.map(|well| create_lj(well, 9.0, EnergyUnit::Kelvin.to_au(well / 0.0019 - 1.0)));
 
-        let couplings_strength = linspace(5.0, 15.0, N-1);
+        let couplings_strength = linspace(5.0, 15.0, N - 1);
         let couplings = couplings_strength
             .iter()
             .map(|c| GaussianCoupling::new(EnergyUnit::Kelvin.to_au(*c), 11.0, 2.0))

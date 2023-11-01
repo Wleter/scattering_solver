@@ -13,7 +13,8 @@ use scattering_solver::{
     defaults::SingleDefaults,
     numerovs::{propagator::Numerov, ratio_numerov::RatioNumerov},
     observables::{
-        dependencies::SingleDependencies, observable_extractor::ObservableExtractor, s_matrix::HasSMatrix,
+        dependencies::SingleDependencies, observable_extractor::ObservableExtractor,
+        s_matrix::HasSMatrix,
     },
     potentials::{potential::Potential, potential_factory::create_lj},
     utility::linspace,
@@ -148,14 +149,11 @@ impl SingleChannel {
         let collision_params = Self::create_collision_params();
 
         let scalings = linspace(0.8, 1.2, 1000);
-        fn change_function(
-            scaling: &f64,
-            params: &mut CollisionParams<impl Potential>,
-        ) {
+        fn change_function(scaling: &f64, params: &mut CollisionParams<impl Potential>) {
             params.particles.scale_red_mass(*scaling);
         }
 
-        let scatterings = SingleDependencies::params_change(
+        let scatterings = SingleDependencies::params_change_par(
             &scalings,
             change_function,
             collision_params,
