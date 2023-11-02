@@ -7,7 +7,7 @@ use crate::{
     numerovs::propagator::NumerovResult,
     potentials::potential::Potential,
     types::FMatrix,
-    utility::{asymptotic_bessel_j, asymptotic_bessel_n, bessel_j_ratio, bessel_n_ratio},
+    quantum::utility::{asymptotic_bessel_j, asymptotic_bessel_n, bessel_j_ratio, bessel_n_ratio},
 };
 
 use super::s_matrix::{MultiChanSMatrix, OneChanSMatrix};

@@ -16,7 +16,7 @@ use scattering_solver::{
         potential::Potential, potential_factory::create_lj,
     },
     types::FMatrix,
-    utility::linspace,
+    quantum::utility::linspace,
 };
 
 pub struct ManyChannels {}

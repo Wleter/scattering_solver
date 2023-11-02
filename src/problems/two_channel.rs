@@ -6,6 +6,7 @@ use quantum::{
     problem_selector::ProblemSelector,
     saving::{save_param_change, save_param_change_complex},
     units::energy_units::EnergyUnit,
+    utility::linspace
 };
 use scattering_solver::{
     asymptotic_states::AsymptoticStates,
@@ -22,7 +23,6 @@ use scattering_solver::{
         potential::Potential, potential_factory::create_lj,
     },
     types::FMatrix,
-    utility::linspace,
 };
 
 pub struct TwoChannel {}
@@ -126,21 +126,22 @@ impl TwoChannel {
 
     fn mass_scaling() {
         println!("Calculating scattering length vs mass scaling...");
-
+        
         let collision_params = Self::create_collision_params();
-
+        
         let scalings = linspace(0.8, 1.2, 1000);
         fn change_function(scaling: &f64, params: &mut CollisionParams<impl Potential>) {
             params.particles.scale_red_mass(*scaling);
         }
-
+        
         let asymptotic = collision_params.potential.asymptotic_value();
         let asymptotic_states = AsymptoticStates {
             energies: vec![asymptotic[(0, 0)], asymptotic[(1, 1)]],
             eigenvectors: FMatrix::<2>::identity(),
             entrance_channel: 0,
         };
-
+        
+        let start = Instant::now();
         let scatterings = MultiDependencies::params_change_par(
             &scalings,
             change_function,
@@ -150,6 +151,8 @@ impl TwoChannel {
             0,
             1e3,
         );
+        let propagation = start.elapsed();
+        println!("Propagation time: {:?} ms", propagation.as_millis());
 
         let header = vec![
             "mass scale factor",

@@ -7,10 +7,9 @@ pub mod observables;
 pub mod potentials;
 pub mod state;
 pub mod types;
-pub mod utility;
 
 extern crate nalgebra;
-extern crate quantum;
+pub extern crate quantum;
 
 #[cfg(test)]
 mod tests {

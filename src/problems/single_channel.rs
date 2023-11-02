@@ -17,7 +17,7 @@ use scattering_solver::{
         s_matrix::HasSMatrix,
     },
     potentials::{potential::Potential, potential_factory::create_lj},
-    utility::linspace,
+    quantum::utility::linspace,
 };
 
 pub struct SingleChannel {}
