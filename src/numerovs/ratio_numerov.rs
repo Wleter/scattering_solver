@@ -1,4 +1,4 @@
-use std::{f64::consts::PI, rc::Rc};
+use std::{f64::consts::PI, rc::Rc, mem::swap};
 
 use num::complex::Complex64;
 use quantum::particles::Particles;
@@ -322,8 +322,8 @@ impl MultiStep for RatioNumerov<FMatrix, Rc<dyn MultiPotential>>
         let psi = f.clone().try_inverse().unwrap()
             * (12.0 * &self.identity - 10.0 * &self.f1 - &self.f2 * self.psi1.clone().try_inverse().unwrap());
 
-        self.f3 = self.f2.clone();
-        self.f2 = self.f1.clone();
+        swap(&mut self.f3, &mut self.f2);
+        swap(&mut self.f2, &mut self.f1);
         self.f1 = f;
 
         self.psi2 = self.psi1.clone();
@@ -474,8 +474,8 @@ impl MultiStep for RatioNumerov<CMatrix, Rc<dyn MultiCPotential>>
                 - &self.f1 * Complex64::from(10.0)
                 - &self.f2 * self.psi1.clone().try_inverse().unwrap());
 
-        self.f3 = self.f2.clone();
-        self.f2 = self.f1.clone();
+        swap(&mut self.f3, &mut self.f2);
+        swap(&mut self.f2, &mut self.f1);
         self.f1 = f;
 
         self.psi2 = self.psi1.clone();

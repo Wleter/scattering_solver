@@ -62,7 +62,7 @@ impl ManyChannels {
         println!("Calculating scattering length...");
         let start = Instant::now();
 
-        const N: usize = 200;
+        const N: usize = 50;
         let (particles, potential) = Self::create_collision_params::<N>();
         let particles = Rc::new(particles);
         let potential: Rc<dyn MultiPotential + 'static> = Rc::new(potential);
