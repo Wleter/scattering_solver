@@ -5,7 +5,7 @@ use quantum::{
     particles::Particles,
     problem_selector::ProblemSelector,
     saving::{save_param_change, save_param_change_complex},
-    units::energy_units::EnergyUnit, utility::linspace,
+    units::{energy_units::EnergyUnit, convert_data_units}, utility::linspace,
 };
 use scattering_solver::{
     boundary::{Boundary, Direction},
@@ -177,13 +177,14 @@ impl SingleChannel {
 
         let collision_params = Self::create_collision_params();
 
-        let energies = linspace(-0.0001, 0.0, 5000);
+        let energies = linspace(-0.0005, 0.0, 5000);
         let (bound_differences, node_counts) =  SingleBounds::bound_diff_dependence(collision_params, &energies, 6.5, 50.0);
         let zipped = bound_differences
             .iter()
             .zip(node_counts.iter())
             .map(|(diff, count)| vec![*diff, *count as f64])
             .collect();
+        let energies = convert_data_units(&energies, |x| EnergyUnit::Au.to_cm_inv(x));
 
         let header = vec![
             "energy",
