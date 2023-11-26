@@ -163,9 +163,12 @@ where
 {
     fn prepare(&mut self, boundary: &Boundary<f64>) {
         self.r = boundary.r_start;
-
         self.current_g_func = self.g_func(&boundary.r_start);
-        self.dr = self.recommended_step_size();
+
+        self.dr = match boundary.direction {
+            crate::boundary::Direction::Inwards => -self.recommended_step_size(),
+            crate::boundary::Direction::Outwards => self.recommended_step_size(),
+        };
 
         self.psi1 = boundary.start_value;
         self.psi2 = boundary.before_value;
@@ -179,7 +182,7 @@ where
 
     fn propagate_to(&mut self, r: f64) {
         assert!(self.is_set_up, "Numerov method not set up");
-        while self.r < r {
+        while self.dr.signum() * (r - self.r) > 0.0 {
             self.variable_step();
         }
     }
@@ -238,7 +241,7 @@ where
         self.current_g_func = self.g_func(&(self.r + self.dr));
 
         let step_size = self.recommended_step_size();
-        if step_size > 2.0 * self.dr && !self.doubled_step_before {
+        if step_size > 2.0 * self.dr.abs() && !self.doubled_step_before {
             self.doubled_step_before = true;
             self.double_step();
             self.current_g_func = self.g_func(&(self.r + self.dr));
@@ -317,7 +320,10 @@ where
         self.r = boundary.r_start;
 
         self.current_g_func = self.g_func(&boundary.r_start);
-        self.dr = self.recommended_step_size();
+        self.dr = match boundary.direction {
+            crate::boundary::Direction::Inwards => -self.recommended_step_size(),
+            crate::boundary::Direction::Outwards => self.recommended_step_size(),
+        };
 
         self.psi1 = boundary.start_value;
         self.psi2 = boundary.before_value;
@@ -331,7 +337,7 @@ where
 
     fn propagate_to(&mut self, r: f64) {
         assert!(self.is_set_up, "Numerov method not set up");
-        while self.r < r {
+        while self.dr.signum() * (r - self.r) > 0.0 {
             self.variable_step();
         }
     }
@@ -392,7 +398,7 @@ where
 
         let step_size = self.recommended_step_size();
 
-        if step_size > 2.0 * self.dr && !self.doubled_step_before {
+        if step_size > 2.0 * self.dr.abs() && !self.doubled_step_before {
             self.doubled_step_before = true;
             self.double_step();
             self.current_g_func = self.g_func(&(self.r + self.dr));
@@ -477,6 +483,10 @@ where
 
         self.current_g_func = self.g_func(&boundary.r_start);
         self.dr = self.recommended_step_size();
+        self.dr = match boundary.direction {
+            crate::boundary::Direction::Inwards => -self.recommended_step_size(),
+            crate::boundary::Direction::Outwards => self.recommended_step_size(),
+        };
 
         self.psi1 = boundary.start_value;
         self.psi2 = boundary.before_value;
@@ -492,7 +502,7 @@ where
 
     fn propagate_to(&mut self, r: f64) {
         assert!(self.is_set_up, "Numerov method not set up");
-        while self.r < r {
+        while self.dr.signum() * (r - self.r) > 0.0 {
             self.variable_step();
         }
     }

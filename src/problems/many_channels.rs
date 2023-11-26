@@ -2,11 +2,11 @@ use std::{collections::VecDeque, time::Instant};
 
 use quantum::{
     particle_factory::create_atom, particles::Particles, problem_selector::ProblemSelector,
-    units::energy_units::EnergyUnit,
+    units::energy_units::EnergyUnit, utility::linspace,
 };
 use scattering_solver::{
     asymptotic_states::AsymptoticStates,
-    boundary::Boundary,
+    boundary::{Boundary, Direction},
     collision_params::CollisionParams,
     defaults::MultiDefaults,
     numerovs::{propagator::Numerov, ratio_numerov::RatioNumerov},
@@ -16,7 +16,6 @@ use scattering_solver::{
         potential::Potential, potential_factory::create_lj,
     },
     types::FMatrix,
-    quantum::utility::linspace,
 };
 
 pub struct ManyChannels {}
@@ -75,7 +74,7 @@ impl ManyChannels {
 
         let preparation = start.elapsed();
 
-        numerov.prepare(&Boundary::new(6.5, MultiDefaults::boundary()));
+        numerov.prepare(&Boundary::new(6.5, Direction::Outwards, MultiDefaults::boundary()));
         numerov.propagate_to(1000.0);
         let result = numerov.result();
 

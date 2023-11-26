@@ -10,7 +10,7 @@ use quantum::{
 };
 use scattering_solver::{
     asymptotic_states::AsymptoticStates,
-    boundary::Boundary,
+    boundary::{Boundary, Direction},
     collision_params::CollisionParams,
     defaults::MultiDefaults,
     numerovs::{propagator::Numerov, ratio_numerov::RatioNumerov},
@@ -71,7 +71,7 @@ impl TwoChannel {
 
         let preparation = start.elapsed();
 
-        numerov.prepare(&Boundary::new(6.5, MultiDefaults::boundary()));
+        numerov.prepare(&Boundary::new(6.5, Direction::Outwards, MultiDefaults::boundary()));
 
         let (rs, waves) = numerov.propagate_values(100.0, MultiDefaults::init_wave());
         let propagation = start.elapsed() - preparation;
@@ -97,7 +97,7 @@ impl TwoChannel {
 
         let preparation = start.elapsed();
 
-        numerov.prepare(&Boundary::new(6.5, MultiDefaults::boundary()));
+        numerov.prepare(&Boundary::new(6.5, Direction::Outwards, MultiDefaults::boundary()));
         numerov.propagate_to(1000.0);
         let result = numerov.result();
 
@@ -146,7 +146,7 @@ impl TwoChannel {
             &scalings,
             change_function,
             collision_params,
-            Boundary::new(6.5, MultiDefaults::boundary()),
+            Boundary::new(6.5, Direction::Outwards, MultiDefaults::boundary()),
             asymptotic_states,
             0,
             1e3,

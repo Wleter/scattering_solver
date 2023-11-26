@@ -3,7 +3,7 @@ use quantum::{
 };
 use scattering_solver::{
     asymptotic_states::AsymptoticStates,
-    boundary::Boundary,
+    boundary::{Boundary, Direction},
     collision_params::CollisionParams,
     defaults::MultiDefaults,
     numerovs::{propagator::Numerov, ratio_numerov::RatioNumerov},
@@ -33,7 +33,7 @@ fn test_two_channel() {
     let collision_params = CollisionParams::new(particles, coupled_potential);
 
     let mut numerov = RatioNumerov::new(&collision_params, 1.0);
-    numerov.prepare(&Boundary::new(6.5, MultiDefaults::boundary()));
+    numerov.prepare(&Boundary::new(6.5, Direction::Outwards, MultiDefaults::boundary()));
     numerov.propagate_to(1000.0);
     let result = numerov.result();
 

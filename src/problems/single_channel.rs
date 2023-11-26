@@ -5,10 +5,10 @@ use quantum::{
     particles::Particles,
     problem_selector::ProblemSelector,
     saving::{save_param_change, save_param_change_complex},
-    units::energy_units::EnergyUnit,
+    units::energy_units::EnergyUnit, utility::linspace,
 };
 use scattering_solver::{
-    boundary::Boundary,
+    boundary::{Boundary, Direction},
     collision_params::CollisionParams,
     defaults::SingleDefaults,
     numerovs::{propagator::Numerov, ratio_numerov::RatioNumerov},
@@ -17,7 +17,6 @@ use scattering_solver::{
         s_matrix::HasSMatrix,
     },
     potentials::{potential::Potential, potential_factory::create_lj},
-    quantum::utility::linspace,
 };
 
 pub struct SingleChannel {}
@@ -68,7 +67,7 @@ impl SingleChannel {
 
         let preparation = start.elapsed();
 
-        numerov.prepare(&Boundary::new(6.5, SingleDefaults::boundary()));
+        numerov.prepare(&Boundary::new(6.5, Direction::Outwards, SingleDefaults::boundary()));
         let (rs, waves) = numerov.propagate_values(100.0, SingleDefaults::init_wave());
         let propagation = start.elapsed() - preparation;
 
@@ -99,7 +98,7 @@ impl SingleChannel {
 
         let preparation = start.elapsed();
 
-        numerov.prepare(&Boundary::new(6.5, SingleDefaults::boundary()));
+        numerov.prepare(&Boundary::new(6.5, Direction::Outwards, SingleDefaults::boundary()));
         numerov.propagate_to(1000.0);
         let result = numerov.result();
 
@@ -130,7 +129,7 @@ impl SingleChannel {
         let (rs, scatterings) = SingleDependencies::propagation_distance(
             distances,
             collision_params,
-            Boundary::new(6.5, SingleDefaults::boundary()),
+            Boundary::new(6.5, Direction::Outwards, SingleDefaults::boundary()),
         );
 
         let header = vec![
@@ -157,7 +156,7 @@ impl SingleChannel {
             &scalings,
             change_function,
             collision_params,
-            Boundary::new(6.5, SingleDefaults::boundary()),
+            Boundary::new(6.5, Direction::Outwards, SingleDefaults::boundary()),
             1e4,
         );
 
@@ -170,4 +169,6 @@ impl SingleChannel {
         save_param_change_complex("single_chan/mass_scaling", scalings, scatterings, header)
             .unwrap();
     }
+
+
 }
