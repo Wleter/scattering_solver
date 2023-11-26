@@ -71,6 +71,18 @@ where
             step_factor,
         }
     }
+
+    pub fn wave_last(&self) -> &T {
+        &self.psi1
+    }
+
+    pub fn r(&self) -> f64 {
+        self.r
+    }
+
+    pub fn dr(&self) -> f64 {
+        self.dr
+    }
 }
 
 impl<'a, P> RatioNumerov<'a, f64, P>
@@ -178,6 +190,10 @@ where
         self.f1 = 1.0 + self.dr * self.dr * self.current_g_func / 12.0;
 
         self.is_set_up = true;
+    }
+    
+    fn single_step(&mut self) {
+        self.variable_step();
     }
 
     fn propagate_to(&mut self, r: f64) {
@@ -333,6 +349,10 @@ where
         self.f1 = self.identity + self.dr * self.dr * self.current_g_func / 12.0;
 
         self.is_set_up = true;
+    }
+        
+    fn single_step(&mut self) {
+        self.variable_step();
     }
 
     fn propagate_to(&mut self, r: f64) {
@@ -498,6 +518,10 @@ where
         self.f1 = self.identity + self.current_g_func * Complex64::from(self.dr * self.dr / 12.0);
 
         self.is_set_up = true;
+    }
+        
+    fn single_step(&mut self) {
+        self.variable_step();
     }
 
     fn propagate_to(&mut self, r: f64) {

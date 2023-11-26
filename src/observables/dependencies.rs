@@ -60,7 +60,7 @@ impl SingleDependencies {
     /// Propagation is starting from `boundary` and it is propagated to the distance `propagation_distance`.
     /// For parallel calculation use `params_change_par`.
     pub fn params_change<P>(
-        changes: &Vec<f64>,
+        changes: &[f64],
         change_function: impl Fn(&f64, &mut CollisionParams<P>),
         mut collision_params: CollisionParams<P>,
         boundary: Boundary<f64>,
@@ -96,7 +96,7 @@ impl SingleDependencies {
     /// Propagation is starting from `boundary` and it is propagated to the distance `propagation_distance`.
     /// For sequential calculation use `params_change`.
     pub fn params_change_par<P>(
-        changes: &Vec<f64>,
+        changes: &[f64],
         change_function: impl Fn(&f64, &mut CollisionParams<P>) + Sync + Send,
         collision_params: CollisionParams<P>,
         boundary: Boundary<f64>,
@@ -178,7 +178,7 @@ impl MultiDependencies {
     /// Propagation is starting from `boundary` and it is propagated to the distance `propagation_distance`.
     /// For parallel calculation use `params_change_par`.
     pub fn params_change<P, const N: usize>(
-        changes: &Vec<f64>,
+        changes: &[f64],
         change_function: impl Fn(&f64, &mut CollisionParams<P>),
         mut collision_params: CollisionParams<P>,
         boundary: Boundary<FMatrix<N>>,
@@ -215,7 +215,7 @@ impl MultiDependencies {
     /// Propagation is starting from `boundary` and it is propagated to the distance `propagation_distance`.
     /// For sequential calculation use `params_change`.
     pub fn params_change_par<P, const N: usize>(
-        changes: &Vec<f64>,
+        changes: &[f64],
         change_function: impl Fn(&f64, &mut CollisionParams<P>) + Sync + Send,
         collision_params: CollisionParams<P>,
         boundary: Boundary<FMatrix<N>>,

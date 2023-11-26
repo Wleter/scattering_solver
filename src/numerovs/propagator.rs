@@ -35,6 +35,10 @@ pub trait Numerov<T, P: Potential<Space = T>> {
     /// `psi(r) = boundary.0` and `psi(r - dr) = boundary.1`
     fn prepare(&mut self, boundary: &Boundary<T>);
 
+    /// Performs a single step of the propagation
+    /// [`prepare`] must be called before calling this method.
+    fn single_step(&mut self);
+
     /// Propagate the wave function until position is larger than r.
     /// [`prepare`] must be called before calling this method.
     fn propagate_to(&mut self, r: f64);

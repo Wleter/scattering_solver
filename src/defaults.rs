@@ -5,7 +5,7 @@ pub struct MultiDefaults;
 
 impl SingleDefaults {
     pub fn boundary() -> (f64, f64) {
-        (1.1, 1.11)
+        (50.0, 10.0)
     }
 
     pub fn init_wave() -> f64 {
@@ -16,8 +16,8 @@ impl SingleDefaults {
 impl MultiDefaults {
     pub fn boundary<const N: usize>() -> (FMatrix<N>, FMatrix<N>) {
         (
-            FMatrix::<N>::from_diagonal_element(1.1),
-            FMatrix::<N>::from_diagonal_element(1.11),
+            FMatrix::<N>::from_diagonal_element(50.0),
+            FMatrix::<N>::from_diagonal_element(10.0),
         )
     }
 

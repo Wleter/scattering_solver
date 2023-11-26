@@ -14,7 +14,7 @@ use scattering_solver::{
     numerovs::{propagator::Numerov, ratio_numerov::RatioNumerov},
     observables::{
         dependencies::SingleDependencies, observable_extractor::ObservableExtractor,
-        s_matrix::HasSMatrix,
+        s_matrix::HasSMatrix, bound_states::SingleBounds,
     },
     potentials::{potential::Potential, potential_factory::create_lj},
 };
@@ -30,6 +30,7 @@ impl ProblemSelector for SingleChannel {
             "scattering length",
             "propagation distance",
             "mass scaling",
+            "bound states",
         ]
     }
 
@@ -39,6 +40,7 @@ impl ProblemSelector for SingleChannel {
             "1" => Self::scattering_length(),
             "2" => Self::propagation_distance(),
             "3" => Self::mass_scaling(),
+            "4" => Self::bound_states(),
             _ => println!("No method found for number {}", number),
         }
     }
@@ -170,5 +172,25 @@ impl SingleChannel {
             .unwrap();
     }
 
+    fn bound_states() {
+        println!("Calculating bound states...");
 
+        let collision_params = Self::create_collision_params();
+
+        let energies = linspace(-0.0001, 0.0, 5000);
+        let (bound_differences, node_counts) =  SingleBounds::bound_diff_dependence(collision_params, &energies, 6.5, 50.0);
+        let zipped = bound_differences
+            .iter()
+            .zip(node_counts.iter())
+            .map(|(diff, count)| vec![*diff, *count as f64])
+            .collect();
+
+        let header = vec![
+            "energy",
+            "bound difference",
+            "node count",
+        ];
+
+        save_param_change("single_chan/bound_diffs", energies, zipped, header).unwrap();
+    }
 }
