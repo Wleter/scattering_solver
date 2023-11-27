@@ -177,8 +177,8 @@ impl SingleChannel {
 
         let collision_params = Self::create_collision_params();
 
-        let energies = linspace(-0.0005, 0.0, 5000);
-        let (bound_differences, node_counts) =  SingleBounds::bound_diff_dependence(collision_params, &energies, 6.5, 50.0);
+        let energies = linspace(EnergyUnit::CmInv.to_au(-200.0), 0.0, 5000);
+        let (bound_differences, node_counts) =  SingleBounds::bound_diff_dependence(collision_params, &energies, 6.5, 70.0);
         let zipped = bound_differences
             .iter()
             .zip(node_counts.iter())
