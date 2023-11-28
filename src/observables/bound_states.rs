@@ -17,11 +17,15 @@ impl SingleBounds {
             collision_params.particles.internals.insert_value("energy", upper_energy);
             let mut numerov = RatioNumerov::new(&collision_params, 1.0);
             numerov.prepare(&boundary);
-            let nodes_max = numerov.propagate_node_counting(r_max);
-            if nodes_max < (-n_bound) as usize {
+            let (diff, mut nodes_max) = Self::bound_diffs(&&collision_params, r_min, r_max); numerov.propagate_node_counting(r_max);
+            if diff > 0.0 {
+                nodes_max -= 1;
+            }
+
+            if nodes_max < (-n_bound) as usize - 1{
                 panic!("Not enough bound states for n = {}", n_bound);
             }
-            let target_nodes = nodes_max - n_bound.abs() as usize;
+            let target_nodes = nodes_max - n_bound.abs() as usize + 1;
 
             let mut lower_energy = low_energy / 128.0;
 
