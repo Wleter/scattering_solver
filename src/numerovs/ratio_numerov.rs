@@ -193,11 +193,11 @@ where
     }
     
     fn single_step(&mut self) {
+        assert!(self.is_set_up, "Numerov method not set up");
         self.variable_step();
     }
 
     fn propagate_to(&mut self, r: f64) {
-        assert!(self.is_set_up, "Numerov method not set up");
         while self.dr.signum() * (r - self.r) > 0.0 {
             self.variable_step();
         }
@@ -352,11 +352,11 @@ where
     }
         
     fn single_step(&mut self) {
+        assert!(self.is_set_up, "Numerov method not set up");
         self.variable_step();
     }
 
     fn propagate_to(&mut self, r: f64) {
-        assert!(self.is_set_up, "Numerov method not set up");
         while self.dr.signum() * (r - self.r) > 0.0 {
             self.variable_step();
         }
@@ -521,11 +521,11 @@ where
     }
         
     fn single_step(&mut self) {
+        assert!(self.is_set_up, "Numerov method not set up");
         self.variable_step();
     }
 
     fn propagate_to(&mut self, r: f64) {
-        assert!(self.is_set_up, "Numerov method not set up");
         while self.dr.signum() * (r - self.r) > 0.0 {
             self.variable_step();
         }
