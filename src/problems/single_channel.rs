@@ -191,7 +191,10 @@ impl SingleChannel {
             "bound difference",
             "node count",
         ];
-
         save_param_change("single_chan/bound_diffs", energies, zipped, header).unwrap();
+
+        let mut collision_params = Self::create_collision_params();
+        let bound_energy = SingleBounds::bound_energy(&mut collision_params, -2, 6.5, 70.0, EnergyUnit::CmInv.to_au(0.1));
+        println!("Bound energy: {:.4e} cm^-1", EnergyUnit::Au.to_cm_inv(bound_energy));
     }
 }
