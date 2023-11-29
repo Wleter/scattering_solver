@@ -153,7 +153,7 @@ impl<P> RatioNumerov<'_, f64, P>
 where
     P: Potential<Space = f64>
 {
-    pub(self) fn propagate_node_counting(&mut self, r_stop: f64) -> usize {
+    pub fn propagate_node_counting(&mut self, r_stop: f64) -> usize {
         let mut node_count = 0;
         while self.r() < r_stop {
             self.single_step();
