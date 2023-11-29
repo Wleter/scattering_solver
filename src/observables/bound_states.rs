@@ -18,7 +18,7 @@ impl SingleBounds {
             let mut numerov = RatioNumerov::new(&collision_params, 1.0);
             numerov.prepare(&boundary);
             let (diff, mut nodes_max) = Self::bound_diffs(&&collision_params, r_min, r_max); numerov.propagate_node_counting(r_max);
-            if diff > 0.0 {
+            if diff < 0.0 {
                 nodes_max -= 1;
             }
 
