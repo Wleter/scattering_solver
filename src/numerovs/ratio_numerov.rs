@@ -206,7 +206,7 @@ where
     fn propagate_values(&mut self, r: f64, wave_init: f64) -> (Vec<f64>, Vec<f64>) {
         assert!(self.is_set_up, "Numerov method not set up");
         let max_capacity: usize = 1000;
-        let r_push_step = (r - self.r) / max_capacity as f64;
+        let r_push_step = (r - self.r).abs() / max_capacity as f64;
 
         let mut wave_functions = Vec::with_capacity(max_capacity);
         let mut positions = Vec::with_capacity(max_capacity);
@@ -215,12 +215,12 @@ where
         positions.push(self.r);
         wave_functions.push(psi_actual);
 
-        while self.r < r {
+        while self.dr.signum() * (r - self.r) > 0.0 {
             self.variable_step();
 
             psi_actual = self.psi1 * psi_actual;
 
-            if (self.r - positions.last().unwrap()) > r_push_step {
+            if (self.r - positions.last().unwrap()).abs() > r_push_step {
                 positions.push(self.r);
                 wave_functions.push(psi_actual);
             }
@@ -365,7 +365,7 @@ where
     fn propagate_values(&mut self, r: f64, wave_init: FMatrix<N>) -> (Vec<f64>, Vec<FMatrix<N>>) {
         assert!(self.is_set_up, "Numerov method not set up");
         let max_capacity: usize = 1000;
-        let r_push_step = (r - self.r) / max_capacity as f64;
+        let r_push_step = (r - self.r).abs() / max_capacity as f64;
 
         let mut wave_functions = Vec::with_capacity(max_capacity);
         let mut positions = Vec::with_capacity(max_capacity);
@@ -374,12 +374,12 @@ where
         positions.push(self.r);
         wave_functions.push(psi_actual);
 
-        while self.r < r {
+        while self.dr.signum() * (r - self.r) > 0.0 {
             self.variable_step();
 
             psi_actual = self.psi1 * psi_actual;
 
-            if (self.r - positions.last().unwrap()) > r_push_step {
+            if (self.r - positions.last().unwrap()).abs() > r_push_step {
                 positions.push(self.r);
                 wave_functions.push(psi_actual);
             }
@@ -535,7 +535,7 @@ where
         assert!(self.is_set_up, "Numerov method not set up");
 
         let max_capacity: usize = 1000;
-        let r_push_step = (r - self.r) / max_capacity as f64;
+        let r_push_step = (r - self.r).abs() / max_capacity as f64;
 
         let mut wave_functions = Vec::with_capacity(max_capacity);
         let mut positions = Vec::with_capacity(max_capacity);
@@ -544,12 +544,12 @@ where
         positions.push(self.r);
         wave_functions.push(psi_actual);
 
-        while self.r < r {
+        while self.dr.signum() * (r - self.r) > 0.0 {
             self.variable_step();
 
             psi_actual = self.psi1 * psi_actual;
 
-            if (self.r - positions.last().unwrap()) > r_push_step {
+            if (self.r - positions.last().unwrap()).abs() > r_push_step {
                 positions.push(self.r);
                 wave_functions.push(psi_actual);
             }

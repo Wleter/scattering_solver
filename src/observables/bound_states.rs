@@ -69,6 +69,42 @@ impl SingleBounds {
         collision_params.particles.internals.get_value("energy")
     }
 
+    pub fn bound_wave<P>(collision_params: &CollisionParams<P>, r_min: f64, r_max: f64) -> (Vec<f64>, Vec<f64>)     
+    where
+    P: Potential<Space = f64>
+    {
+        let inwards_boundary = Boundary::new(r_max, Direction::Inwards, SingleDefaults::boundary());
+        let outwards_boundary = Boundary::new(r_min, Direction::Outwards, SingleDefaults::boundary());
+
+        let mut numerov = RatioNumerov::new(&collision_params, 1.0);
+        numerov.prepare(&inwards_boundary);
+
+        let mut wave_inwards = Vec::new();
+        let mut rs_inwards = Vec::new();
+        wave_inwards.push(1.0);
+        rs_inwards.push(numerov.r());
+
+        while *numerov.wave_last() > 1.0 {
+            numerov.single_step();
+            wave_inwards.insert(0, *numerov.wave_last() * wave_inwards.first().unwrap());
+            rs_inwards.insert(0, numerov.r());
+        }
+
+        numerov.prepare(&outwards_boundary);
+        let r_match = *rs_inwards.first().unwrap();
+        let (mut rs, mut wave) = numerov.propagate_values(r_match, 1e-50);
+        rs.pop();
+        wave.pop();
+
+        let normalization = wave_inwards.first().unwrap() / wave.last().unwrap();
+        wave.iter_mut().for_each(|w| *w *= normalization);
+
+        wave.extend(wave_inwards);
+        rs.extend(rs_inwards);
+
+        (rs, wave)
+    }
+
     pub fn bound_diff_dependence<P>(mut collision_params: CollisionParams<P>, energies: &[f64], r_min: f64, r_max: f64) -> (Vec<f64>, Vec<usize>)
     where
         P: Potential<Space = f64>
