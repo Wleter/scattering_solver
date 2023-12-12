@@ -1,7 +1,31 @@
+use quantum::units::{energy_units::Energy, Unit};
+
 use crate::types::FMatrix;
 
 pub struct AsymptoticStates<const N: usize> {
-    pub energies: Vec<f64>,
-    pub eigenvectors: FMatrix<N>,
-    pub entrance_channel: usize,
+    energies: Vec<f64>,
+    eigenvectors: FMatrix<N>,
+    entrance_channel: usize,
+}
+
+impl<const N: usize> AsymptoticStates<N> {
+    pub fn new<U: Unit>(energies: Vec<Energy<U>>, eigenvectors: FMatrix<N>, entrance_channel: usize) -> Self {
+        Self {
+            energies: energies.iter().map(|e| e.to_au()).collect(),
+            eigenvectors,
+            entrance_channel,
+        }
+    }
+
+    pub fn energies(&self) -> &[f64] {
+        &self.energies
+    }
+
+    pub fn eigenvectors(&self) -> &FMatrix<N> {
+        &self.eigenvectors
+    }
+
+    pub fn entrance_channel(&self) -> usize {
+        self.entrance_channel
+    }
 }

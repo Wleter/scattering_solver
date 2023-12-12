@@ -2,7 +2,7 @@ use std::{collections::VecDeque, time::Instant};
 
 use quantum::{
     particle_factory::create_atom, particles::Particles, problem_selector::ProblemSelector,
-    units::energy_units::EnergyUnit, utility::linspace,
+    units::energy_units::{Energy, Kelvin}, utility::linspace,
 };
 use scattering_solver::{
     asymptotic_states::AsymptoticStates,
@@ -40,19 +40,19 @@ impl ManyChannels {
     ) -> CollisionParams<impl Potential<Space = FMatrix<N>>> {
         let particle1 = create_atom("Li6").unwrap();
         let particle2 = create_atom("Li7").unwrap();
-        let energy = EnergyUnit::Kelvin.to_au(1e-7);
+        let energy = Energy::new(1e-7, Kelvin);
 
         let mut particles = Particles::new_pair(particle1, particle2, energy);
         particles.internals.insert_value("l", 0.0);
 
         let wells: [f64; N] = linspace(0.0019, 0.0022, N).try_into().unwrap();
         let potentials =
-            wells.map(|well| create_lj(well, 9.0, EnergyUnit::Kelvin.to_au(well / 0.0019 - 1.0)));
+            wells.map(|well| create_lj(Energy::new(well, Kelvin), 9.0, Energy::new(well / 0.0019 - 1.0, Kelvin)));
 
         let couplings_strength = linspace(5.0, 15.0, N - 1);
         let couplings = couplings_strength
             .iter()
-            .map(|c| GaussianCoupling::new(EnergyUnit::Kelvin.to_au(*c), 11.0, 2.0))
+            .map(|c| GaussianCoupling::new(Energy::new(*c, Kelvin), 11.0, 2.0))
             .collect();
 
         let coupled_potential = couple_neighbors(couplings, potentials);
@@ -69,7 +69,7 @@ impl ManyChannels {
 
         let energies = linspace(0.0019, 0.0022, N)
             .iter()
-            .map(|well| EnergyUnit::Kelvin.to_au(well / 0.0019 - 1.0))
+            .map(|well| Energy::new(well / 0.0019 - 1.0, Kelvin))
             .collect();
 
         let preparation = start.elapsed();
@@ -82,11 +82,7 @@ impl ManyChannels {
 
         let mut observable_extractor = ObservableExtractor::new(&collision_params, result);
 
-        let asymptotic_states = AsymptoticStates {
-            energies,
-            eigenvectors: FMatrix::<N>::identity(),
-            entrance_channel: 0,
-        };
+        let asymptotic_states = AsymptoticStates::new(energies, FMatrix::<N>::identity(), 0);
         let l = collision_params.particles.internals.get_value("l") as usize;
 
         let s_matrix = observable_extractor.calculate_s_matrix(l, &asymptotic_states);

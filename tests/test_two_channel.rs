@@ -1,5 +1,5 @@
 use quantum::{
-    particle_factory::create_atom, particles::Particles, units::energy_units::EnergyUnit,
+    particle_factory::create_atom, particles::Particles, units::{energy_units::{Kelvin, Energy}, Au},
 };
 use scattering_solver::{
     asymptotic_states::AsymptoticStates,
@@ -19,15 +19,15 @@ use scattering_solver::{
 fn test_two_channel() {
     let particle1 = create_atom("Li6").unwrap();
     let particle2 = create_atom("Li7").unwrap();
-    let energy = EnergyUnit::Kelvin.to_au(1e-7);
+    let energy = Energy::new(1e-7, Kelvin);
 
     let mut particles = Particles::new_pair(particle1, particle2, energy);
     particles.internals.insert_value("l", 0.0);
 
-    let potential_lj1 = create_lj(0.002, 9.0, 0.0);
-    let potential_lj2 = create_lj(0.0021, 8.9, EnergyUnit::Kelvin.to_au(1.0));
+    let potential_lj1 = create_lj(Energy::new(0.002, Au), 9.0, Energy::new(0.0, Au));
+    let potential_lj2 = create_lj(Energy::new(0.0021, Au), 8.9, Energy::new(1.0, Kelvin));
 
-    let coupling = GaussianCoupling::new(EnergyUnit::Kelvin.to_au(10.0), 11.0, 2.0);
+    let coupling = GaussianCoupling::new(Energy::new(10.0, Kelvin), 11.0, 2.0);
     let coupled_potential = couple_neighbors(vec![coupling], [potential_lj1, potential_lj2]);
 
     let collision_params = CollisionParams::new(particles, coupled_potential);
@@ -39,12 +39,13 @@ fn test_two_channel() {
 
     let mut observable_extractor = ObservableExtractor::new(&collision_params, result);
     let asymptotic = collision_params.potential.asymptotic_value();
+    let asymptotic = asymptotic.diagonal().iter().map(|e| Energy::new(*e, Au)).collect();
 
-    let asymptotic_states = AsymptoticStates {
-        energies: vec![asymptotic[(0, 0)], asymptotic[(1, 1)]],
-        eigenvectors: FMatrix::<2>::identity(),
-        entrance_channel: 0,
-    };
+    let asymptotic_states = AsymptoticStates::new(
+        asymptotic, 
+        FMatrix::<2>::identity(), 
+        0
+    );
     let l = collision_params.particles.internals.get_value("l") as usize;
 
     let s_matrix = observable_extractor.calculate_s_matrix(l, &asymptotic_states);

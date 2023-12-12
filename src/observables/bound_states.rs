@@ -1,13 +1,16 @@
+use quantum::units::{Unit, energy_units::Energy, Au};
+
 use crate::{collision_params::CollisionParams, numerovs::{ratio_numerov::RatioNumerov, propagator::Numerov}, potentials::potential::Potential, boundary::{Boundary, Direction}, defaults::SingleDefaults};
 
 
 pub struct SingleBounds;
 
 impl SingleBounds {
-    pub fn bound_energy<P>(collision_params: &mut CollisionParams<P>, n_bound: isize, r_min: f64, r_max: f64, err: f64) -> f64
+    pub fn bound_energy<P, U: Unit>(collision_params: &mut CollisionParams<P>, n_bound: isize, r_min: f64, r_max: f64, err: Energy<U>) -> Energy<Au>
     where
         P: Potential<Space = f64>    
     {
+        let err = err.to_au(); 
         let boundary = Boundary::new(r_min, Direction::Outwards, SingleDefaults::boundary());
 
         let mut upper_energy = collision_params.potential.asymptotic_value() - 1e-50;
@@ -66,7 +69,7 @@ impl SingleBounds {
             todo!()
         }
         
-        collision_params.particles.internals.get_value("energy")
+        Energy::new(collision_params.particles.internals.get_value("energy"), Au)
     }
 
     pub fn bound_wave<P>(collision_params: &CollisionParams<P>, r_min: f64, r_max: f64) -> (Vec<f64>, Vec<f64>)     
@@ -105,14 +108,14 @@ impl SingleBounds {
         (rs, wave)
     }
 
-    pub fn bound_diff_dependence<P>(mut collision_params: CollisionParams<P>, energies: &[f64], r_min: f64, r_max: f64) -> (Vec<f64>, Vec<usize>)
+    pub fn bound_diff_dependence<P, U: Unit>(mut collision_params: CollisionParams<P>, energies: &[Energy<U>], r_min: f64, r_max: f64) -> (Vec<f64>, Vec<usize>)
     where
         P: Potential<Space = f64>
     {
         let mut bound_differences = Vec::new();
         let mut node_counts = Vec::new();
         for energy in energies {
-            collision_params.particles.internals.insert_value("energy", *energy);
+            collision_params.particles.internals.insert_value("energy", energy.to_au());
             
             let (bound_difference, node_count) = Self::bound_diffs(&collision_params, r_min, r_max);
             bound_differences.push(bound_difference);

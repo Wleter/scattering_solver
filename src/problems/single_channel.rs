@@ -5,7 +5,7 @@ use quantum::{
     particles::Particles,
     problem_selector::ProblemSelector,
     saving::{save_param_change, save_param_change_complex},
-    units::{energy_units::EnergyUnit, convert_data_units}, utility::linspace,
+    units::{energy_units::{Kelvin, Energy, CmInv}, Au}, utility::{linspace, unit_linspace},
 };
 use scattering_solver::{
     boundary::{Boundary, Direction},
@@ -50,12 +50,12 @@ impl SingleChannel {
     fn create_collision_params() -> CollisionParams<impl Potential<Space = f64>> {
         let particle1 = create_atom("Li6").unwrap();
         let particle2 = create_atom("Li7").unwrap();
-        let energy = EnergyUnit::Kelvin.to_au(1e-7);
+        let energy = Energy::new(1e-7, Kelvin);
 
         let mut particles = Particles::new_pair(particle1, particle2, energy);
         particles.internals.insert_value("l", 0.0);
 
-        let potential = create_lj(0.002, 9.0, 0.0);
+        let potential = create_lj(Energy::new(0.002, Au), 9.0, Energy::new(0.0, Au));
 
         CollisionParams::new(particles, potential)
     }
@@ -177,14 +177,14 @@ impl SingleChannel {
 
         let collision_params = Self::create_collision_params();
 
-        let energies = linspace(EnergyUnit::CmInv.to_au(-200.0), 0.0, 5000);
+        let energies = unit_linspace(Energy::new(-200.0, CmInv), Energy::new(0.0, CmInv), 5000);
         let (bound_differences, node_counts) =  SingleBounds::bound_diff_dependence(collision_params, &energies, 6.5, 70.0);
         let zipped = bound_differences
             .iter()
             .zip(node_counts.iter())
             .map(|(diff, count)| vec![*diff, *count as f64])
             .collect();
-        let energies = convert_data_units(&energies, |x| EnergyUnit::Au.to_cm_inv(x));
+        let energies = energies.iter().map(|e| e.value).collect();
 
         let header = vec![
             "energy",
@@ -194,7 +194,7 @@ impl SingleChannel {
         save_param_change("single_chan/bound_diffs", energies, zipped, header).unwrap();
 
         let mut collision_params = Self::create_collision_params();
-        let bound_energy = SingleBounds::bound_energy(&mut collision_params, -2, 6.5, 70.0, EnergyUnit::CmInv.to_au(0.1));
-        println!("Bound energy: {:.4e} cm^-1", EnergyUnit::Au.to_cm_inv(bound_energy));
+        let bound_energy = SingleBounds::bound_energy(&mut collision_params, -2, 6.5, 70.0, Energy::new(0.1, CmInv));
+        println!("Bound energy: {:.4e} cm^-1", bound_energy.to(CmInv).value);
     }
 }

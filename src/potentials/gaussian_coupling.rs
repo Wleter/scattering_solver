@@ -1,3 +1,5 @@
+use quantum::units::{Unit, energy_units::Energy};
+
 use super::potential::Potential;
 
 /// Gaussian coupling potential
@@ -10,11 +12,11 @@ pub struct GaussianCoupling {
 
 impl GaussianCoupling {
     /// Creates new Gaussian coupling potential with given strength, center position and width
-    pub fn new(strength: f64, center: f64, width: f64) -> Self {
+    pub fn new<U: Unit>(strength: Energy<U>, center: f64, width: f64) -> Self {
         Self {
             width,
             center,
-            strength,
+            strength: strength.to_au(),
         }
     }
 }

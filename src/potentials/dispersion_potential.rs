@@ -1,3 +1,5 @@
+use quantum::units::{Unit, energy_units::Energy};
+
 use super::potential::Potential;
 
 /// Potential of the form d0 * r^n + v0
@@ -9,8 +11,8 @@ pub struct DispersionPotential {
 }
 
 impl DispersionPotential {
-    pub fn new(d0: f64, n: i32, v0: f64) -> Self {
-        Self { d0, n, v0 }
+    pub fn new<U: Unit>(d0: Energy<U>, n: i32, v0: f64) -> Self {
+        Self { d0: d0.to_au(), n, v0 }
     }
 }
 
