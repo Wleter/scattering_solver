@@ -328,7 +328,7 @@ dependencies = [
 [[package]]
 name = "quantum"
 version = "0.1.0"
-source = "git+https://github.com/Wleter/quantum.git?branch=master#2b2346709d3af7d193d67ed99f77a43752468502"
+source = "git+https://github.com/Wleter/quantum.git?branch=master#4f4ff9d54119025b6dbbe5c93aa72360f235d14c"
 dependencies = [
  "num",
 ]
