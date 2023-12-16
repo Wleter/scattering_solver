@@ -2,25 +2,79 @@ use quantum::units::{Unit, energy_units::Energy, Au};
 
 use crate::{collision_params::CollisionParams, numerovs::{ratio_numerov::RatioNumerov, propagator::Numerov}, potentials::potential::Potential, boundary::{Boundary, Direction}, defaults::SingleDefaults};
 
-
 pub struct SingleBounds;
 
 impl SingleBounds {
-    pub fn bound_energy<P, U: Unit>(collision_params: &mut CollisionParams<P>, n_bound: isize, r_min: f64, r_max: f64, err: Energy<U>) -> Energy<Au>
+    /// Returns highest bound state in energy range if it exists
+    pub fn bound_energy<P, U: Unit>(collision_params: &mut CollisionParams<P>, energy_range: (Energy<U>, Energy<U>), r_range: (f64, f64), err: Energy<U>) -> Option<Energy<Au>>
+    where
+        P: Potential<Space = f64>    
+    {
+        let boundary = Boundary::new(r_range.0, Direction::Outwards, SingleDefaults::boundary());
+
+        let mut upper_energy = energy_range.1.to_au();
+        let mut lower_energy = energy_range.0.to_au();
+
+        collision_params.particles.internals.insert_value("energy", upper_energy);
+        let mut numerov = RatioNumerov::new(&collision_params, 1.0);
+        numerov.prepare(&boundary);
+        let (diff, mut nodes_max) = Self::bound_diffs(collision_params, r_range); 
+        numerov.propagate_node_counting(r_range.1);
+        if diff < 0.0 {
+            nodes_max -= 1;
+        }
+
+        collision_params.particles.internals.insert_value("energy", lower_energy);
+        let mut numerov = RatioNumerov::new(&collision_params, 1.0);
+        numerov.prepare(&boundary);
+        let (diff, mut nodes_min) = Self::bound_diffs(collision_params, r_range);
+        numerov.propagate_node_counting(r_range.1);
+        if diff < 0.0 {
+            nodes_min -= 1;
+        }
+
+        if nodes_max == nodes_min {
+            return None;
+        }
+
+        let err = err.to_au(); 
+        while upper_energy - lower_energy > err {
+            let mid_energy = (upper_energy + lower_energy) / 2.0;
+
+            collision_params.particles.internals.insert_value("energy", mid_energy);
+            let (diff, nodes) =  Self::bound_diffs(&collision_params, r_range);
+
+            if nodes > nodes_max {
+                upper_energy = mid_energy
+            } else if nodes < nodes_max{
+                lower_energy = mid_energy
+            } else if diff > 0.0 {
+                upper_energy = mid_energy;
+            } else {
+                lower_energy = mid_energy
+            }
+        }
+        collision_params.particles.internals.insert_value("energy", (lower_energy + upper_energy) / 2.0);
+
+        Some(Energy::new((lower_energy + upper_energy) / 2.0, Au))
+    }
+    
+    pub fn n_bound_energy<P, U: Unit>(collision_params: &mut CollisionParams<P>, n_bound: isize, r_range: (f64, f64), err: Energy<U>) -> Energy<Au>
     where
         P: Potential<Space = f64>    
     {
         let err = err.to_au(); 
-        let boundary = Boundary::new(r_min, Direction::Outwards, SingleDefaults::boundary());
+        let boundary = Boundary::new(r_range.0, Direction::Outwards, SingleDefaults::boundary());
 
         let mut upper_energy = collision_params.potential.asymptotic_value() - 1e-50;
-        let low_energy = collision_params.potential.value(&((r_min + r_max) / 2.0));
+        let low_energy = collision_params.potential.value(&((r_range.0 + r_range.1) / 2.0));
         
         if n_bound < 0 {
             collision_params.particles.internals.insert_value("energy", upper_energy);
             let mut numerov = RatioNumerov::new(&collision_params, 1.0);
             numerov.prepare(&boundary);
-            let (diff, mut nodes_max) = Self::bound_diffs(&&collision_params, r_min, r_max); numerov.propagate_node_counting(r_max);
+            let (diff, mut nodes_max) = Self::bound_diffs(collision_params, r_range); 
+            numerov.propagate_node_counting(r_range.1);
             if diff < 0.0 {
                 nodes_max -= 1;
             }
@@ -35,7 +89,7 @@ impl SingleBounds {
             collision_params.particles.internals.insert_value("energy", lower_energy);
             let mut numerov = RatioNumerov::new(&collision_params, 1.0);
             numerov.prepare(&boundary);
-            let mut lower_nodes = numerov.propagate_node_counting(r_max);
+            let mut lower_nodes = numerov.propagate_node_counting(r_range.1);
 
             while lower_nodes >= target_nodes {
                 lower_energy *= 2.0;
@@ -43,14 +97,14 @@ impl SingleBounds {
                 collision_params.particles.internals.insert_value("energy", lower_energy);
                 let mut numerov = RatioNumerov::new(&collision_params, 1.0);
                 numerov.prepare(&boundary);
-                lower_nodes = numerov.propagate_node_counting(r_max);
+                lower_nodes = numerov.propagate_node_counting(r_range.1);
             }
 
             while upper_energy - lower_energy > err {
                 let mid_energy = (upper_energy + lower_energy) / 2.0;
 
                 collision_params.particles.internals.insert_value("energy", mid_energy);
-                let (diff, nodes) =  Self::bound_diffs(&collision_params, r_min, r_max);
+                let (diff, nodes) =  Self::bound_diffs(&collision_params, r_range);
 
                 if nodes > target_nodes {
                     upper_energy = mid_energy
@@ -72,12 +126,12 @@ impl SingleBounds {
         Energy::new(collision_params.particles.internals.get_value("energy"), Au)
     }
 
-    pub fn bound_wave<P>(collision_params: &CollisionParams<P>, r_min: f64, r_max: f64) -> (Vec<f64>, Vec<f64>)     
+    pub fn bound_wave<P>(collision_params: &CollisionParams<P>, r_range: (f64, f64)) -> (Vec<f64>, Vec<f64>)     
     where
     P: Potential<Space = f64>
     {
-        let inwards_boundary = Boundary::new(r_max, Direction::Inwards, SingleDefaults::boundary());
-        let outwards_boundary = Boundary::new(r_min, Direction::Outwards, SingleDefaults::boundary());
+        let inwards_boundary = Boundary::new(r_range.1, Direction::Inwards, SingleDefaults::boundary());
+        let outwards_boundary = Boundary::new(r_range.0, Direction::Outwards, SingleDefaults::boundary());
 
         let mut numerov = RatioNumerov::new(&collision_params, 1.0);
         numerov.prepare(&inwards_boundary);
@@ -108,7 +162,7 @@ impl SingleBounds {
         (rs, wave)
     }
 
-    pub fn bound_diff_dependence<P, U: Unit>(mut collision_params: CollisionParams<P>, energies: &[Energy<U>], r_min: f64, r_max: f64) -> (Vec<f64>, Vec<usize>)
+    pub fn bound_diff_dependence<P, U: Unit>(mut collision_params: CollisionParams<P>, energies: &[Energy<U>], r_range: (f64, f64)) -> (Vec<f64>, Vec<usize>)
     where
         P: Potential<Space = f64>
     {
@@ -117,7 +171,7 @@ impl SingleBounds {
         for energy in energies {
             collision_params.particles.internals.insert_value("energy", energy.to_au());
             
-            let (bound_difference, node_count) = Self::bound_diffs(&collision_params, r_min, r_max);
+            let (bound_difference, node_count) = Self::bound_diffs(&collision_params, r_range);
             bound_differences.push(bound_difference);
             node_counts.push(node_count);
         }
@@ -125,12 +179,12 @@ impl SingleBounds {
         (bound_differences, node_counts)
     }
 
-    pub fn bound_diffs<P>(collision_params: &CollisionParams<P>, r_min: f64, r_max: f64) -> (f64, usize)
+    pub fn bound_diffs<P>(collision_params: &CollisionParams<P>, r_range: (f64, f64)) -> (f64, usize)
     where
         P: Potential<Space = f64>, 
     {   
-        let inwards_boundary = Boundary::new(r_max, Direction::Inwards, SingleDefaults::boundary());
-        let outwards_boundary = Boundary::new(r_min, Direction::Outwards, SingleDefaults::boundary());
+        let inwards_boundary = Boundary::new(r_range.1, Direction::Inwards, SingleDefaults::boundary());
+        let outwards_boundary = Boundary::new(r_range.0, Direction::Outwards, SingleDefaults::boundary());
 
         let mut numerov = RatioNumerov::new(&collision_params, 1.0);
         numerov.prepare(&inwards_boundary);

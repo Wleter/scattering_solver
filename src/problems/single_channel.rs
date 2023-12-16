@@ -178,7 +178,7 @@ impl SingleChannel {
         let collision_params = Self::create_collision_params();
 
         let energies = unit_linspace(Energy::new(-200.0, CmInv), Energy::new(0.0, CmInv), 5000);
-        let (bound_differences, node_counts) =  SingleBounds::bound_diff_dependence(collision_params, &energies, 6.5, 70.0);
+        let (bound_differences, node_counts) =  SingleBounds::bound_diff_dependence(collision_params, &energies, (6.5, 70.0));
         let zipped = bound_differences
             .iter()
             .zip(node_counts.iter())
@@ -194,7 +194,7 @@ impl SingleChannel {
         save_param_change("single_chan/bound_diffs", energies, zipped, header).unwrap();
 
         let mut collision_params = Self::create_collision_params();
-        let bound_energy = SingleBounds::bound_energy(&mut collision_params, -2, 6.5, 70.0, Energy::new(0.1, CmInv));
+        let bound_energy = SingleBounds::n_bound_energy(&mut collision_params, -2, (6.5, 70.0), Energy::new(0.1, CmInv));
         println!("Bound energy: {:.4e} cm^-1", bound_energy.to(CmInv).value);
     }
 }
