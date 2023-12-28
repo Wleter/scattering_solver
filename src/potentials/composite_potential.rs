@@ -1,3 +1,7 @@
+use std::iter::Sum;
+
+use num_traits::Zero;
+
 use super::potential::Potential;
 
 /// Composite potential that has value equal to the sum of its components
@@ -20,11 +24,14 @@ impl<P: Potential> CompositePotential<P> {
     }
 }
 
-impl<P: Potential> Potential for CompositePotential<P> {
+impl<P: Potential> Potential for CompositePotential<P> 
+where
+    P::Space: Zero + Sum,
+{
     type Space = P::Space;
 
     #[inline(always)]
-    fn value(&self, r: &f64) -> Self::Space {
-        self.potentials.iter().map(|p| p.value(r)).sum()
+    fn value_inplace(&self, r: &f64, destination: &mut Self::Space) {
+        *destination = self.potentials.iter().fold(Self::Space::zero(), |acc, p| acc + p.value(r))
     }
 }

@@ -20,12 +20,9 @@ where
     type Space = FMatrix<N>;
 
     #[inline(always)]
-    fn value(&self, r: &f64) -> Self::Space {
-        let mut value_array = FMatrix::<N>::zeros();
+    fn value_inplace(&self, r: &f64, destination: &mut FMatrix<N>) {
         for (i, potential) in self.potentials.iter().enumerate() {
-            value_array[(i, i)] = potential.value(r);
+            destination[(i, i)] = potential.value(r);
         }
-
-        value_array
     }
 }
