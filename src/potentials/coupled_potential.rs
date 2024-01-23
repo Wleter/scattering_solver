@@ -33,7 +33,7 @@ where
     type Space = FMatrix<N>;
 
     #[inline(always)]
-    fn value(&self, r: &f64) -> Self::Space {
-        self.potential.value(r) + self.coupling.value(r)
+    fn value_inplace(&self, r: &f64, destination: &mut FMatrix<N>) {
+        *destination = self.potential.value(r) + self.coupling.value(r)
     }
 }

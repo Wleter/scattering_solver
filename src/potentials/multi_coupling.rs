@@ -34,18 +34,15 @@ where
     type Space = FMatrix<N>;
 
     #[inline(always)]
-    fn value(&self, r: &f64) -> Self::Space {
-        let mut values_matrix = FMatrix::<N>::zeros();
+    fn value_inplace(&self, r: &f64, destination: &mut FMatrix<N>) {
         for (potential, i, j) in self.potentials.iter() {
             let value = potential.value(r);
 
-            values_matrix[(*i, *j)] = value;
+            destination[(*i, *j)] = value;
 
             if self.symmetric {
-                values_matrix[(*j, *i)] = value;
+                destination[(*j, *i)] = value;
             }
         }
-
-        values_matrix
     }
 }

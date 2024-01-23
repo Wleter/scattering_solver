@@ -20,7 +20,7 @@ impl Potential for DispersionPotential {
     type Space = f64;
 
     #[inline(always)]
-    fn value(&self, r: &f64) -> f64 {
-        self.d0 * r.powi(self.n) + self.v0
+    fn value_inplace(&self, r: &f64, destination: &mut f64) {
+        *destination = self.d0 * r.powi(self.n) + self.v0
     }
 }

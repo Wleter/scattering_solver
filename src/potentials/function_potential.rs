@@ -25,7 +25,7 @@ where
     type Space = T;
 
     #[inline(always)]
-    fn value(&self, r: &f64) -> Self::Space {
-        (self.function)(r)
+    fn value_inplace(&self, r: &f64, destination: &mut Self::Space) {
+        *destination = (self.function)(r)
     }
 }
