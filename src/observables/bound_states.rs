@@ -141,7 +141,7 @@ impl SingleBounds {
         wave_inwards.push(1.0);
         rs_inwards.push(numerov.r());
 
-        while *numerov.wave_last() > 1.0 {
+        while *numerov.wave_last() > 1.0 && numerov.r() > r_range.0 {
             numerov.single_step();
             wave_inwards.insert(0, *numerov.wave_last() * wave_inwards.first().unwrap());
             rs_inwards.insert(0, numerov.r());
@@ -189,7 +189,7 @@ impl SingleBounds {
         let mut numerov = RatioNumerov::new(&collision_params, 1.0);
         numerov.prepare(&inwards_boundary);
 
-        while *numerov.wave_last() > 1.0 {
+        while *numerov.wave_last() > 1.0 && numerov.r() > r_range.0 {
             numerov.single_step();
         }
         let outwards_result = numerov.result();
