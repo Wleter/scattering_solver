@@ -9,8 +9,7 @@ use scattering_solver::{
     numerovs::{propagator::Numerov, ratio_numerov::RatioNumerov},
     observables::{observable_extractor::ObservableExtractor, s_matrix::HasSMatrix},
     potentials::{
-        coupling_factory::couple_neighbors, gaussian_coupling::GaussianCoupling,
-        potential::Potential, potential_factory::create_lj,
+        coupled_potential::CoupledPotential, gaussian_coupling::GaussianCoupling, multi_coupling::MultiCoupling, multi_diag_potential::MultiDiagPotential, potential::Potential, potential_factory::create_lj
     },
     types::FMatrix,
 };
@@ -28,7 +27,10 @@ fn test_two_channel() {
     let potential_lj2 = create_lj(Energy::new(0.0021, Au), 8.9, Energy::new(1.0, Kelvin));
 
     let coupling = GaussianCoupling::new(Energy::new(10.0, Kelvin), 11.0, 2.0);
-    let coupled_potential = couple_neighbors(vec![coupling], [potential_lj1, potential_lj2]);
+    
+    let potential = MultiDiagPotential::new([potential_lj1, potential_lj2]);
+    let coupling = MultiCoupling::new_neighboring(vec![coupling]);
+    let coupled_potential = CoupledPotential::new(potential, coupling);
 
     let collision_params = CollisionParams::new(particles, coupled_potential);
 

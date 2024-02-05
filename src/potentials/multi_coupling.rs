@@ -9,7 +9,6 @@ where
     P: Potential<Space = f64>,
 {
     potentials: Vec<(P, usize, usize)>,
-
     symmetric: bool,
 }
 
@@ -24,6 +23,18 @@ where
             potentials,
             symmetric,
         }
+    }
+
+    pub fn new_neighboring(couplings: Vec<P>) -> Self {
+        assert!(couplings.len() + 1 == N);
+
+        let numbered_potentials = couplings
+            .into_iter()
+            .enumerate()
+            .map(|(i, potential)| (potential, i, i + 1))
+            .collect();
+
+        Self::new(numbered_potentials, true)
     }
 }
 

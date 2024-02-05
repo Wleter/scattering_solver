@@ -12,8 +12,7 @@ use scattering_solver::{
     numerovs::{propagator::Numerov, ratio_numerov::RatioNumerov},
     observables::{observable_extractor::ObservableExtractor, s_matrix::HasSMatrix},
     potentials::{
-        coupling_factory::couple_neighbors, gaussian_coupling::GaussianCoupling,
-        potential::Potential, potential_factory::create_lj,
+        coupled_potential::CoupledPotential, gaussian_coupling::GaussianCoupling, multi_coupling::MultiCoupling, multi_diag_potential::MultiDiagPotential, potential::Potential, potential_factory::create_lj
     },
     types::FMatrix,
 };
@@ -55,7 +54,9 @@ impl ManyChannels {
             .map(|c| GaussianCoupling::new(Energy::new(*c, Kelvin), 11.0, 2.0))
             .collect();
 
-        let coupled_potential = couple_neighbors(couplings, potentials);
+        let potential = MultiDiagPotential::new(potentials);
+        let coupling = MultiCoupling::new_neighboring(couplings);
+        let coupled_potential = CoupledPotential::new(potential, coupling);
         CollisionParams::new(particles, coupled_potential)
     }
 
