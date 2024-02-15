@@ -1,16 +1,12 @@
-use std::iter::Sum;
-
-use num_traits::Zero;
-
-use super::potential::Potential;
+use super::potential::PotentialCurve;
 
 /// Composite potential that has value equal to the sum of its components
 #[derive(Debug, Clone)]
-pub struct CompositePotential<P: Potential> {
+pub struct CompositePotential<P: PotentialCurve> {
     potentials: Vec<P>,
 }
 
-impl<P: Potential> CompositePotential<P> {
+impl<P: PotentialCurve> CompositePotential<P> {
     pub fn new() -> Self {
         Self {
             potentials: Vec::new(),
@@ -24,14 +20,10 @@ impl<P: Potential> CompositePotential<P> {
     }
 }
 
-impl<P: Potential> Potential for CompositePotential<P> 
-where
-    P::Space: Zero + Sum,
+impl<P: PotentialCurve> PotentialCurve for CompositePotential<P>
 {
-    type Space = P::Space;
-
     #[inline(always)]
-    fn value_inplace(&self, r: &f64, destination: &mut Self::Space) {
-        *destination = self.potentials.iter().fold(Self::Space::zero(), |acc, p| acc + p.value(r))
+    fn value_inplace(&self, r: &f64, destination: &mut f64) {
+        *destination = self.potentials.iter().fold(0.0, |acc, p| acc + p.value(r))
     }
 }

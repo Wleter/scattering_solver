@@ -1,32 +1,25 @@
 use nalgebra::DMatrix;
 use num::complex::Complex64;
+use quantum::particles::Particles;
 
 use crate::{
-    asymptotic_states::AsymptoticStates,
-    collision_params::CollisionParams,
-    numerovs::propagator::NumerovResult,
-    potentials::potential::Potential,
-    types::FMatrix,
-    quantum::utility::{asymptotic_bessel_j, asymptotic_bessel_n, bessel_j_ratio, bessel_n_ratio},
+    asymptotic_states::AsymptoticStates, numerovs::propagator::NumerovResult, potentials::potential::{PotentialCurve, PotentialSurface}, quantum::utility::{asymptotic_bessel_j, asymptotic_bessel_n, bessel_j_ratio, bessel_n_ratio}, types::FMatrix
 };
 
 use super::s_matrix::{MultiChanSMatrix, OneChanSMatrix};
 
-pub struct ObservableExtractor<'a, T, P>
-where
-    P: Potential<Space = T>,
-{
-    collision_params: &'a CollisionParams<P>,
+pub struct ObservableExtractor<'a, T, P> {
+    particles: &'a Particles,
+    potential: &'a P,
     result: NumerovResult<T>,
 }
 
 impl<'a, T, P> ObservableExtractor<'a, T, P>
-where
-    P: Potential<Space = T>,
 {
-    pub fn new(collision_params: &'a CollisionParams<P>, result: NumerovResult<T>) -> Self {
+    pub fn new(particles: &'a Particles, potential: &'a P, result: NumerovResult<T>) -> Self {
         Self {
-            collision_params,
+            particles,
+            potential,
             result,
         }
     }
@@ -38,7 +31,7 @@ where
 
 impl<'a, P> ObservableExtractor<'a, f64, P>
 where
-    P: Potential<Space = f64>,
+    P: PotentialCurve,
 {
     pub fn calculate_s_matrix(&mut self, l: usize, asymptotic: f64) -> OneChanSMatrix {
         let r_last = self.result.r_last;
@@ -46,11 +39,10 @@ where
         let wave_ratio = self.result.wave_ratio;
 
         let energy = self
-            .collision_params
             .particles
             .internals
             .get_value("energy");
-        let mass = self.collision_params.particles.red_mass();
+        let mass = self.particles.red_mass();
 
         let momentum = (2.0 * mass * (energy - asymptotic)).sqrt();
         assert!(momentum.is_nan() == false, "channel is closed, no S-Matrix");
@@ -68,9 +60,9 @@ where
     }
 }
 
-impl<'a, const N: usize, P> ObservableExtractor<'a, FMatrix<N>, P>
+impl<'a, P, const N: usize> ObservableExtractor<'a, FMatrix<N>, P>
 where
-    P: Potential<Space = FMatrix<N>>,
+    P: PotentialSurface<FMatrix<N>>,
 {
     pub fn calculate_s_matrix(
         &mut self,
@@ -82,11 +74,10 @@ where
         let wave_ratio = self.result.wave_ratio;
 
         let energy = self
-            .collision_params
             .particles
             .internals
             .get_value("energy");
-        let mass = self.collision_params.particles.red_mass();
+        let mass = self.particles.red_mass();
 
         let is_open_channel = asymptotic
             .energies()

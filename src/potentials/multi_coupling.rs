@@ -1,20 +1,16 @@
-use crate::types::FMatrix;
+use crate::types::FNField;
 
-use super::potential::Potential;
+use super::potential::{PotentialSurface, PotentialCurve};
 
 /// Multi coupling potential used to couple multi channel potentials.
 #[derive(Clone)]
 pub struct MultiCoupling<const N: usize, P>
-where
-    P: Potential<Space = f64>,
 {
     potentials: Vec<(P, usize, usize)>,
     symmetric: bool,
 }
 
-impl<const N: usize, P> MultiCoupling<N, P>
-where
-    P: Potential<Space = f64>,
+impl<const N: usize, P: PotentialCurve> MultiCoupling<N, P>
 {
     /// Creates new multi coupling potential with given vector of potentials with their coupling indices in potential matrix.
     /// If `symmetric` is true, the coupling matrix will be symmetric.
@@ -38,14 +34,10 @@ where
     }
 }
 
-impl<const N: usize, P> Potential for MultiCoupling<N, P>
-where
-    P: Potential<Space = f64>,
+impl<const N: usize, P: PotentialCurve, T: FNField<N>> PotentialSurface<T> for MultiCoupling<N, P>
 {
-    type Space = FMatrix<N>;
-
     #[inline(always)]
-    fn value_inplace(&self, r: &f64, destination: &mut FMatrix<N>) {
+    fn value_inplace(&self, r: &f64, destination: &mut T) {
         for (potential, i, j) in self.potentials.iter() {
             let value = potential.value(r);
 

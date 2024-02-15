@@ -1,6 +1,6 @@
 use quantum::units::{Unit, energy_units::Energy};
 
-use super::potential::Potential;
+use super::potential::PotentialCurve;
 
 /// Gaussian coupling potential
 #[derive(Clone)]
@@ -21,9 +21,7 @@ impl GaussianCoupling {
     }
 }
 
-impl Potential for GaussianCoupling {
-    type Space = f64;
-
+impl PotentialCurve for GaussianCoupling {
     #[inline(always)]
     fn value_inplace(&self, r: &f64, destination: &mut f64) {
         *destination = self.strength * (-((r - self.center) / self.width).powi(2) / 2.0).exp()

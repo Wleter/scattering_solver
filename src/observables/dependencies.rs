@@ -1,12 +1,12 @@
+use quantum::particles::Particles;
 use rayon::prelude::*;
 
 use crate::{
     asymptotic_states::AsymptoticStates,
     boundary::Boundary,
-    collision_params::CollisionParams,
     numerovs::{propagator::Numerov, ratio_numerov::RatioNumerov},
-    potentials::potential::Potential,
-    types::FMatrix,
+    potentials::potential::{PotentialCurve, PotentialSurface},
+    types::{FMatrix, FNField},
 };
 use num::complex::Complex64;
 
@@ -22,23 +22,24 @@ impl SingleDependencies {
     /// Returns vector of distances and vector of corresponding scattering lengths. 
     pub fn propagation_distance<P>(
         distances: Vec<f64>,
-        collision_params: CollisionParams<P>,
+        particles: &Particles,
+        potential: &P,
         boundary: Boundary<f64>,
     ) -> (Vec<f64>, Vec<Complex64>)
     where
-        P: Potential<Space = f64>,
+        P: PotentialCurve,
     {
         let mut rs = Vec::with_capacity(distances.len());
         let mut scatterings = Vec::with_capacity(distances.len());
-        let asymptotic = collision_params.potential.asymptotic_value();
-        let l = collision_params.particles.internals.get_value("l") as usize;
+        let asymptotic = potential.asymptotic_value();
+        let l = particles.internals.get_value("l") as usize;
 
-        let collisions_cloned = collision_params.clone();
+        let particles_cloned = particles.clone();
 
-        let mut numerov = RatioNumerov::new(&collisions_cloned, 1.0);
+        let mut numerov = RatioNumerov::new(particles, potential, 1.0);
         numerov.prepare(&boundary);
         let result = numerov.result();
-        let mut observable_extractor = ObservableExtractor::new(&collision_params, result);
+        let mut observable_extractor = ObservableExtractor::new(particles, potential, result);
 
         for distance in distances {
             numerov.propagate_to(distance);
@@ -61,27 +62,28 @@ impl SingleDependencies {
     /// For parallel calculation use `params_change_par`.
     pub fn params_change<P>(
         changes: &[f64],
-        change_function: impl Fn(&f64, &mut CollisionParams<P>),
-        mut collision_params: CollisionParams<P>,
+        change_function: impl Fn(&f64, &mut Particles),
+        mut particles: Particles,
+        potential: P,
         boundary: Boundary<f64>,
         propagation_distance: f64,
     ) -> Vec<Complex64>
     where
-        P: Potential<Space = f64>,
+        P: PotentialCurve,
     {
         let mut scatterings = Vec::with_capacity(changes.len());
-        let asymptotic = collision_params.potential.asymptotic_value();
-        let l = collision_params.particles.internals.get_value("l") as usize;
+        let asymptotic = potential.asymptotic_value();
+        let l = particles.internals.get_value("l") as usize;
 
         for change in changes {
-            change_function(&change, &mut collision_params);
+            change_function(&change, &mut particles);
 
-            let mut numerov = RatioNumerov::new(&collision_params, 1.0);
+            let mut numerov = RatioNumerov::new(&particles, &potential, 1.0);
             numerov.prepare(&boundary);
             numerov.propagate_to(propagation_distance);
             let result = numerov.result();
 
-            let mut observable_extractor = ObservableExtractor::new(&collision_params, result);
+            let mut observable_extractor = ObservableExtractor::new(&particles, &potential, result);
 
             let s_matrix = observable_extractor.calculate_s_matrix(l, asymptotic);
             let scattering_length = s_matrix.get_scattering_length(0);
@@ -97,28 +99,29 @@ impl SingleDependencies {
     /// For sequential calculation use `params_change`.
     pub fn params_change_par<P>(
         changes: &[f64],
-        change_function: impl Fn(&f64, &mut CollisionParams<P>) + Sync + Send,
-        collision_params: CollisionParams<P>,
+        change_function: impl Fn(&f64, &mut Particles) + Sync + Send,
+        mut particles: Particles,
+        potential: P,
         boundary: Boundary<f64>,
         propagation_distance: f64,
     ) -> Vec<Complex64>
     where
-        P: Potential<Space = f64>,
+        P: PotentialCurve,
     {
-        let asymptotic = collision_params.potential.asymptotic_value();
-        let l = collision_params.particles.internals.get_value("l") as usize;
+        let asymptotic = potential.asymptotic_value();
+        let l = particles.internals.get_value("l") as usize;
 
         let scatterings = changes
             .par_iter()
-            .map_with(collision_params, |mut collision_params, change| {
-                change_function(&change, &mut collision_params);
+            .map_with((particles, potential), |(mut particles, potential), change| {
+                change_function(&change, &mut particles);
 
-                let mut numerov = RatioNumerov::new(&collision_params, 1.0);
+                let mut numerov = RatioNumerov::new(&particles, &potential, 1.0, 0.0f64);
                 numerov.prepare(&boundary);
                 numerov.propagate_to(propagation_distance);
                 let result = numerov.result();
 
-                let mut observable_extractor = ObservableExtractor::new(&collision_params, result);
+                let mut observable_extractor = ObservableExtractor::new(&particles, &potential, result);
 
                 let s_matrix = observable_extractor.calculate_s_matrix(l, asymptotic);
                 s_matrix.get_scattering_length(0)
@@ -137,26 +140,26 @@ impl MultiDependencies {
     /// It is the single channel real case with default propagation settings.
     /// Propagation is starting from `boundary` and using `collision_params`.
     /// Returns vector of distances and vector of corresponding scattering lengths. 
-    pub fn propagation_distance<P, const N: usize>(
+    pub fn propagation_distance<const N: usize, T, P>(
         distances: Vec<f64>,
-        collision_params: CollisionParams<P>,
+        mut particles: Particles,
+        potential: P,
         boundary: Boundary<FMatrix<N>>,
         asymptotic: AsymptoticStates<N>,
         entrance_channel: usize,
     ) -> (Vec<f64>, Vec<Complex64>)
     where
-        P: Potential<Space = FMatrix<N>>,
+        P: PotentialSurface<T>,
+        T: FNField<N>,
     {
         let mut rs = Vec::with_capacity(distances.len());
         let mut scatterings = Vec::with_capacity(distances.len());
-        let l = collision_params.particles.internals.get_value("l") as usize;
+        let l = particles.internals.get_value("l") as usize;
 
-        let collisions_cloned = collision_params.clone();
-
-        let mut numerov = RatioNumerov::new(&collisions_cloned, 1.0);
+        let mut numerov = RatioNumerov::new(&particles, &potential, 1.0);
         numerov.prepare(&boundary);
         let mut result = numerov.result();
-        let mut observable_extractor = ObservableExtractor::new(&collision_params, result);
+        let mut observable_extractor = ObservableExtractor::new(&particles, &potential, result);
 
         for distance in distances {
             numerov.propagate_to(distance);
@@ -177,30 +180,32 @@ impl MultiDependencies {
     /// It is the multi channel real case with default propagation settings.
     /// Propagation is starting from `boundary` and it is propagated to the distance `propagation_distance`.
     /// For parallel calculation use `params_change_par`.
-    pub fn params_change<P, const N: usize>(
+    pub fn params_change<const N: usize, T, P>(
         changes: &[f64],
-        change_function: impl Fn(&f64, &mut CollisionParams<P>),
-        mut collision_params: CollisionParams<P>,
+        change_function: impl Fn(&f64, &mut Particles),
+        mut particles: Particles,
+        potential: P,
         boundary: Boundary<FMatrix<N>>,
         asymptotic: AsymptoticStates<N>,
         entrance_channel: usize,
         propagation_distance: f64,
     ) -> Vec<Complex64>
     where
-        P: Potential<Space = FMatrix<N>>,
+        P: PotentialSurface<T>,
+        T: FNField<N>,
     {
         let mut scatterings = Vec::with_capacity(changes.len());
-        let l = collision_params.particles.internals.get_value("l") as usize;
+        let l = particles.internals.get_value("l") as usize;
 
         for change in changes {
-            change_function(&change, &mut collision_params);
+            change_function(&change, &mut particles);
 
-            let mut numerov = RatioNumerov::new(&collision_params, 1.0);
+            let mut numerov = RatioNumerov::new(&particles, &potential, 1.0);
             numerov.prepare(&boundary);
             numerov.propagate_to(propagation_distance);
             let result = numerov.result();
 
-            let mut observable_extractor = ObservableExtractor::new(&collision_params, result);
+            let mut observable_extractor = ObservableExtractor::new(&particles, &potential, result);
 
             let s_matrix = observable_extractor.calculate_s_matrix(l, &asymptotic);
             let scattering_length = s_matrix.get_scattering_length(entrance_channel);
@@ -214,31 +219,33 @@ impl MultiDependencies {
     /// It is the multi channel real case with default propagation settings.
     /// Propagation is starting from `boundary` and it is propagated to the distance `propagation_distance`.
     /// For sequential calculation use `params_change`.
-    pub fn params_change_par<P, const N: usize>(
+    pub fn params_change_par<const N: usize, P, T>(
         changes: &[f64],
-        change_function: impl Fn(&f64, &mut CollisionParams<P>) + Sync + Send,
-        collision_params: CollisionParams<P>,
+        change_function: impl Fn(&f64, &mut Particles) + Sync + Send,
+        mut particles: Particles,
+        potential: P,
         boundary: Boundary<FMatrix<N>>,
         asymptotic: AsymptoticStates<N>,
         entrance_channel: usize,
         propagation_distance: f64,
     ) -> Vec<Complex64>
     where
-        P: Potential<Space = FMatrix<N>>,
+        P: PotentialSurface<T>,
+        T: FNField<N>,
     {
-        let l = collision_params.particles.internals.get_value("l") as usize;
+        let l = particles.internals.get_value("l") as usize;
 
         let scatterings = changes
             .par_iter()
-            .map_with(collision_params, |mut collision_params, change| {
-                change_function(&change, &mut collision_params);
+            .map_with((particles, potential), |(mut particles, potential), change| {
+                change_function(&change, &mut particles);
 
-                let mut numerov = RatioNumerov::new(&collision_params, 1.0);
+                let mut numerov = RatioNumerov::new(&particles, &potential, 1.0);
                 numerov.prepare(&boundary);
                 numerov.propagate_to(propagation_distance);
                 let result = numerov.result();
 
-                let mut observable_extractor = ObservableExtractor::new(&collision_params, result);
+                let mut observable_extractor = ObservableExtractor::new(&particles, &potential, result);
 
                 let s_matrix = observable_extractor.calculate_s_matrix(l, &asymptotic);
                 s_matrix.get_scattering_length(entrance_channel)

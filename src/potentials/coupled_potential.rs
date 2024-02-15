@@ -1,39 +1,42 @@
-use crate::types::FMatrix;
+use crate::types::MultiField;
 
-use super::potential::Potential;
+use super::potential::PotentialSurface;
 
 #[derive(Clone)]
-pub struct CoupledPotential<const N: usize, P, C>
+pub struct CoupledPotential<T, P, C>
 where
-    P: Potential<Space = FMatrix<N>>,
-    C: Potential<Space = FMatrix<N>>,
+    P: PotentialSurface<T>,
+    C: PotentialSurface<T>, 
+    T: MultiField
 {
     potential: P,
     coupling: C,
+    _phantom: std::marker::PhantomData<T>,
 }
 
-impl<const N: usize, P, C> CoupledPotential<N, P, C>
+impl<T, P, C> CoupledPotential<T, P, C>
 where
-    P: Potential<Space = FMatrix<N>>,
-    C: Potential<Space = FMatrix<N>>,
+    P: PotentialSurface<T>,
+    C: PotentialSurface<T>,
+    T: MultiField
 {
     pub fn new(potential: P, coupling: C) -> Self {
         Self {
             potential,
             coupling,
+            _phantom: std::marker::PhantomData,
         }
     }
 }
 
-impl<const N: usize, P, C> Potential for CoupledPotential<N, P, C>
+impl<T, P, C> PotentialSurface<T> for CoupledPotential<T, P, C>
 where
-    P: Potential<Space = FMatrix<N>>,
-    C: Potential<Space = FMatrix<N>>,
+    P: PotentialSurface<T>,
+    C: PotentialSurface<T>,
+    T: MultiField
 {
-    type Space = FMatrix<N>;
-
     #[inline(always)]
-    fn value_inplace(&self, r: &f64, destination: &mut FMatrix<N>) {
+    fn value_inplace(&self, r: &f64, destination: &mut T) {
         *destination = self.potential.value(r) + self.coupling.value(r)
     }
 }

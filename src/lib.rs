@@ -20,17 +20,16 @@ mod tests {
 
     use crate::{
         boundary::{Boundary, Direction},
-        collision_params::CollisionParams,
         numerovs::{propagator::Numerov, ratio_numerov::RatioNumerov},
         potentials::{
-            multi_diag_potential::MultiDiagPotential, potential::Potential,
+            multi_diag_potential::MultiDiagPotential,
             potential_factory::create_lj,
         },
     };
 
     #[test]
     fn test_potential() {
-        let potential = create_lj(Energy(0.0002, Au), 8.0, Energy(0.0, Au));
+        let potential = create_lj(Energy(0.0002, Au), 8.0);
         assert_eq!(potential.value(&8.0), -0.0002);
 
         let multi_potential =
@@ -41,7 +40,7 @@ mod tests {
 
     #[test]
     fn test_numerov() {
-        let potential = create_lj(Energy(0.0002, Au), 8.0, Energy(0.0, Au));
+        let potential = create_lj(Energy(0.0002, Au), 8.0);
 
         let atom1 = create_atom("Li6").unwrap();
         let atom2 = create_atom("Li7").unwrap();
