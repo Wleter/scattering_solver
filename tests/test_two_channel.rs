@@ -18,15 +18,15 @@ use scattering_solver::{
 fn test_two_channel() {
     let particle1 = create_atom("Li6").unwrap();
     let particle2 = create_atom("Li7").unwrap();
-    let energy = Energy::new(1e-7, Kelvin);
+    let energy = Energy(1e-7, Kelvin);
 
     let mut particles = Particles::new_pair(particle1, particle2, energy);
     particles.internals.insert_value("l", 0.0);
 
-    let potential_lj1 = create_lj(Energy::new(0.002, Au), 9.0, Energy::new(0.0, Au));
-    let potential_lj2 = create_lj(Energy::new(0.0021, Au), 8.9, Energy::new(1.0, Kelvin));
+    let potential_lj1 = create_lj(Energy(0.002, Au), 9.0, Energy(0.0, Au));
+    let potential_lj2 = create_lj(Energy(0.0021, Au), 8.9, Energy(1.0, Kelvin));
 
-    let coupling = GaussianCoupling::new(Energy::new(10.0, Kelvin), 11.0, 2.0);
+    let coupling = GaussianCoupling::new(Energy(10.0, Kelvin), 11.0, 2.0);
     
     let potential = MultiDiagPotential::new([potential_lj1, potential_lj2]);
     let coupling = MultiCoupling::new_neighboring(vec![coupling]);
@@ -41,7 +41,7 @@ fn test_two_channel() {
 
     let mut observable_extractor = ObservableExtractor::new(&collision_params, result);
     let asymptotic = collision_params.potential.asymptotic_value();
-    let asymptotic = asymptotic.diagonal().iter().map(|e| Energy::new(*e, Au)).collect();
+    let asymptotic = asymptotic.diagonal().iter().map(|e| Energy(*e, Au)).collect();
 
     let asymptotic_states = AsymptoticStates::new(
         asymptotic, 

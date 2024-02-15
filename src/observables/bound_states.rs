@@ -56,7 +56,7 @@ impl SingleBounds {
         }
         collision_params.particles.internals.insert_value("energy", (lower_energy + upper_energy) / 2.0);
 
-        Some(Energy::new((lower_energy + upper_energy) / 2.0, Au))
+        Some(Energy((lower_energy + upper_energy) / 2.0, Au))
     }
     
     pub fn n_bound_energy<P, U: Unit>(collision_params: &mut CollisionParams<P>, n_bound: isize, r_range: (f64, f64), err: Energy<U>) -> Energy<Au>
@@ -123,7 +123,7 @@ impl SingleBounds {
             todo!()
         }
         
-        Energy::new(collision_params.particles.internals.get_value("energy"), Au)
+        Energy(collision_params.particles.internals.get_value("energy"), Au)
     }
 
     pub fn bound_wave<P>(collision_params: &CollisionParams<P>, r_range: (f64, f64)) -> (Vec<f64>, Vec<f64>)     

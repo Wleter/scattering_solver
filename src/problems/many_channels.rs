@@ -39,19 +39,19 @@ impl ManyChannels {
     ) -> CollisionParams<impl Potential<Space = FMatrix<N>>> {
         let particle1 = create_atom("Li6").unwrap();
         let particle2 = create_atom("Li7").unwrap();
-        let energy = Energy::new(1e-7, Kelvin);
+        let energy = Energy(1e-7, Kelvin);
 
         let mut particles = Particles::new_pair(particle1, particle2, energy);
         particles.internals.insert_value("l", 0.0);
 
         let wells: [f64; N] = linspace(0.0019, 0.0022, N).try_into().unwrap();
         let potentials =
-            wells.map(|well| create_lj(Energy::new(well, Kelvin), 9.0, Energy::new(well / 0.0019 - 1.0, Kelvin)));
+            wells.map(|well| create_lj(Energy(well, Kelvin), 9.0, Energy(well / 0.0019 - 1.0, Kelvin)));
 
         let couplings_strength = linspace(5.0, 15.0, N - 1);
         let couplings = couplings_strength
             .iter()
-            .map(|c| GaussianCoupling::new(Energy::new(*c, Kelvin), 11.0, 2.0))
+            .map(|c| GaussianCoupling::new(Energy(*c, Kelvin), 11.0, 2.0))
             .collect();
 
         let potential = MultiDiagPotential::new(potentials);
@@ -70,7 +70,7 @@ impl ManyChannels {
 
         let energies = linspace(0.0019, 0.0022, N)
             .iter()
-            .map(|well| Energy::new(well / 0.0019 - 1.0, Kelvin))
+            .map(|well| Energy(well / 0.0019 - 1.0, Kelvin))
             .collect();
 
         let preparation = start.elapsed();

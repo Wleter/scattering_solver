@@ -1,5 +1,3 @@
-use core::panic;
-
 use quantum::particles::Particles;
 
 use crate::potentials::potential::Potential;
@@ -15,10 +13,6 @@ pub struct CollisionParams<P: Potential> {
 impl<P: Potential> CollisionParams<P> {
     /// Creates new collision parameters
     pub fn new(particles: Particles, potential: P) -> Self {
-        if particles.particle_count() != 2 {
-            panic!("Collision only for two particles");
-        }
-
         Self {
             particles,
             potential,

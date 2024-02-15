@@ -7,8 +7,8 @@ pub fn create_lj<U: Unit, V: Unit>(d6: Energy<U>, r6: f64, v0: Energy<V>) -> Com
     let mut potential = CompositePotential::new();
 
     let d6 = d6.to_au();
-    let c12 = Energy::new(d6 * r6.powi(12), Au);
-    let c6 = Energy::new(-2.0 * d6 * r6.powi(6), Au);
+    let c12 = Energy(d6 * r6.powi(12), Au);
+    let c6 = Energy(-2.0 * d6 * r6.powi(6), Au);
     let v0 = v0.to_au();
 
     potential.add_potential(DispersionPotential::new(c12, -12, v0));

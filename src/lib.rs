@@ -30,7 +30,7 @@ mod tests {
 
     #[test]
     fn test_potential() {
-        let potential = create_lj(Energy::new(0.0002, Au), 8.0, Energy::new(0.0, Au));
+        let potential = create_lj(Energy(0.0002, Au), 8.0, Energy(0.0, Au));
         assert_eq!(potential.value(&8.0), -0.0002);
 
         let multi_potential =
@@ -40,24 +40,12 @@ mod tests {
     }
 
     #[test]
-    fn test_collision_params() {
-        let potential = create_lj(Energy::new(0.0002, Au), 8.0, Energy::new(0.0, Au));
-
-        let atom1 = create_atom("Li6").unwrap();
-        let atom2 = create_atom("Li7").unwrap();
-        let particles = Particles::new_pair(atom1, atom2, Energy::new(1e-7, Kelvin));
-
-        let collision_params = CollisionParams::new(particles, potential);
-        assert_eq!(collision_params.particles.particle_count(), 2);
-    }
-
-    #[test]
     fn test_numerov() {
-        let potential = create_lj(Energy::new(0.0002, Au), 8.0, Energy::new(0.0, Au));
+        let potential = create_lj(Energy(0.0002, Au), 8.0, Energy(0.0, Au));
 
         let atom1 = create_atom("Li6").unwrap();
         let atom2 = create_atom("Li7").unwrap();
-        let particles = Particles::new_pair(atom1, atom2, Energy::new(1e-7, Kelvin));
+        let particles = Particles::new_pair(atom1, atom2, Energy(1e-7, Kelvin));
 
         let collision_params = CollisionParams::new(particles, potential);
         let mut numerov = RatioNumerov::new(&collision_params, 1.0);

@@ -50,12 +50,12 @@ impl SingleChannel {
     fn create_collision_params() -> CollisionParams<impl Potential<Space = f64>> {
         let particle1 = create_atom("Li6").unwrap();
         let particle2 = create_atom("Li7").unwrap();
-        let energy = Energy::new(1e-7, Kelvin);
+        let energy = Energy(1e-7, Kelvin);
 
         let mut particles = Particles::new_pair(particle1, particle2, energy);
         particles.internals.insert_value("l", 0.0);
 
-        let potential = create_lj(Energy::new(0.002, Au), 9.0, Energy::new(0.0, Au));
+        let potential = create_lj(Energy(0.002, Au), 9.0, Energy(0.0, Au));
 
         CollisionParams::new(particles, potential)
     }
@@ -177,14 +177,14 @@ impl SingleChannel {
 
         let collision_params = Self::create_collision_params();
 
-        let energies = unit_linspace(Energy::new(-200.0, CmInv), Energy::new(0.0, CmInv), 5000);
+        let energies = unit_linspace(Energy(-200.0, CmInv), Energy(0.0, CmInv), 5000);
         let (bound_differences, node_counts) =  SingleBounds::bound_diff_dependence(collision_params, &energies, (6.5, 70.0));
         let zipped = bound_differences
             .iter()
             .zip(node_counts.iter())
             .map(|(diff, count)| vec![*diff, *count as f64])
             .collect();
-        let energies = energies.iter().map(|e| e.value).collect();
+        let energies = energies.iter().map(|e| e.value()).collect();
 
         let header = vec![
             "energy",
@@ -194,7 +194,7 @@ impl SingleChannel {
         save_param_change("single_chan/bound_diffs", energies, zipped, header).unwrap();
 
         let mut collision_params = Self::create_collision_params();
-        let bound_energy = SingleBounds::n_bound_energy(&mut collision_params, -2, (6.5, 70.0), Energy::new(0.1, CmInv));
-        println!("Bound energy: {:.4e} cm^-1", bound_energy.to(CmInv).value);
+        let bound_energy = SingleBounds::n_bound_energy(&mut collision_params, -2, (6.5, 70.0), Energy(0.1, CmInv));
+        println!("Bound energy: {:.4e} cm^-1", bound_energy.to(CmInv).value());
     }
 }
