@@ -48,7 +48,7 @@ mod tests {
         let particles = Particles::new_pair(atom1, atom2, Energy(1e-7, Kelvin));
 
         let collision_params = CollisionParams::new(particles, potential);
-        let mut numerov = RatioNumerov::new(&collision_params, 1.0);
+        let mut numerov = RatioNumerov::new(&collision_params);
         numerov.prepare(&Boundary::new(7.0, Direction::Outwards, (1.1, 1.2)));
         numerov.propagate_to(100.0);
         let result = numerov.result();

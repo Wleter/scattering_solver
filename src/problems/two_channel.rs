@@ -13,7 +13,7 @@ use scattering_solver::{
     boundary::{Boundary, Direction},
     collision_params::CollisionParams,
     defaults::MultiDefaults,
-    numerovs::{propagator::Numerov, ratio_numerov::RatioNumerov},
+    numerovs::{propagator::{Numerov, Sampling}, ratio_numerov::RatioNumerov},
     observables::{
         dependencies::MultiDependencies, observable_extractor::ObservableExtractor,
         s_matrix::HasSMatrix,
@@ -69,13 +69,13 @@ impl TwoChannel {
         let start = Instant::now();
 
         let collision_params = Self::create_collision_params();
-        let mut numerov = RatioNumerov::new(&collision_params, 1.0);
+        let mut numerov = RatioNumerov::new(&collision_params);
 
         let preparation = start.elapsed();
 
         numerov.prepare(&Boundary::new(6.5, Direction::Outwards, MultiDefaults::boundary()));
 
-        let (rs, waves) = numerov.propagate_values(100.0, MultiDefaults::init_wave());
+        let (rs, waves) = numerov.propagate_values(100.0, MultiDefaults::init_wave(), Sampling::Uniform(1000));
         let propagation = start.elapsed() - preparation;
 
         let header = vec!["position", "channel 1", "channel 2"];
@@ -95,7 +95,7 @@ impl TwoChannel {
         let start = Instant::now();
 
         let collision_params = Self::create_collision_params();
-        let mut numerov = RatioNumerov::new(&collision_params, 1.0);
+        let mut numerov = RatioNumerov::new(&collision_params);
 
         let preparation = start.elapsed();
 

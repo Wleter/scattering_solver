@@ -34,7 +34,7 @@ fn test_two_channel() {
 
     let collision_params = CollisionParams::new(particles, coupled_potential);
 
-    let mut numerov = RatioNumerov::new(&collision_params, 1.0);
+    let mut numerov = RatioNumerov::new(&collision_params);
     numerov.prepare(&Boundary::new(6.5, Direction::Outwards, MultiDefaults::boundary()));
     numerov.propagate_to(1000.0);
     let result = numerov.result();

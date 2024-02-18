@@ -4,13 +4,10 @@ use num::complex::Complex64;
 use num_traits::{One, Zero};
 
 use crate::{
-    boundary::Boundary,
-    collision_params::CollisionParams,
-    potentials::potential::Potential,
-    types::{CMatrix, FMatrix},
+    boundary::Boundary, collision_params::CollisionParams, numerovs::propagator::SamplingStorage, potentials::potential::Potential, types::{CMatrix, FMatrix}
 };
 
-use super::propagator::{MultiStep, Numerov, NumerovResult};
+use super::propagator::{MultiStep, Numerov, NumerovResult, Sampling};
 
 /// Numerov method propagating ratios of the wave function,
 /// implementing Numerov and NumerovResult trait for single channel and multi channel cases
@@ -45,7 +42,7 @@ where
     P: Potential<Space = T>,
 {
     /// Creates a new instance of the RatioNumerov struct
-    pub fn new(collision_params: &'a CollisionParams<P>, step_factor: f64) -> Self {
+    pub fn new(collision_params: &'a CollisionParams<P>) -> Self {
         let mass = collision_params.particles.red_mass();
         let energy = collision_params.particles.internals.get_value("energy");
 
@@ -68,7 +65,7 @@ where
 
             doubled_step_before: false,
             is_set_up: false,
-            step_factor,
+            step_factor: 1.0,
         }
     }
 
@@ -83,6 +80,10 @@ where
     pub fn dr(&self) -> f64 {
         self.dr
     }
+
+    pub fn set_step_factor(&mut self, factor: f64) {
+        self.step_factor = factor;
+    }
 }
 
 impl<'a, P> RatioNumerov<'a, f64, P>
@@ -91,8 +92,46 @@ where
 {
     /// Returns the g function described in the Numerov method at position r
     #[inline(always)]
-    fn g_func(&mut self, &r: &f64) -> f64 {
+    fn g_func(&self, &r: &f64) -> f64 {
         2.0 * self.mass * (self.energy - self.collision_params.potential.value(&r))
+    }
+
+    pub(crate) fn propagate_node_counting(&mut self, r_stop: f64) -> usize {
+        let mut node_count = 0;
+        while self.r() < r_stop {
+            self.single_step();
+
+            if *self.wave_last() < 0.0 {
+                node_count += 1;
+            }
+        }
+
+        node_count
+    }
+
+
+    pub(crate) fn propagation_distance(&mut self, r_lims: (f64, f64)) -> f64 {
+        let mut barrier = true;
+
+        let mut decay_factor = 0.0;
+        let max_decay = -(0.001_f64.ln());
+
+        let mut r = r_lims.0;
+        self.current_g_func = self.g_func(&r);
+        
+        while decay_factor < max_decay && r < r_lims.1 {
+            let dr = 10.0 * self.recommended_step_size();
+            r += dr;
+            self.current_g_func = self.g_func(&r);
+
+            if self.current_g_func < 0.0 && !barrier {
+                decay_factor += dr * self.current_g_func.abs().sqrt();
+            } else if self.current_g_func > 0.0 {
+                barrier = false;
+            }
+        }
+
+        r.min(r_lims.1)
     }
 }
 
@@ -161,11 +200,11 @@ where
         self.psi1 *= self.psi2;
     }
 
-    fn recommended_step_size(&mut self) -> f64 {
+    fn recommended_step_size(&self) -> f64 {
         let lambda = 2.0 * PI / self.current_g_func.abs().sqrt();
         let lambda_step_ratio = 500.0;
 
-        self.step_factor * lambda / lambda_step_ratio
+        (self.step_factor * lambda / lambda_step_ratio).min(10.0) // cap the step size at 10 to avoid huge steps
     }
 }
 
@@ -203,30 +242,20 @@ where
         }
     }
 
-    fn propagate_values(&mut self, r: f64, wave_init: f64) -> (Vec<f64>, Vec<f64>) {
+    fn propagate_values(&mut self, r_stop: f64, wave_init: f64, sampling: Sampling) -> (Vec<f64>, Vec<f64>) {
         assert!(self.is_set_up, "Numerov method not set up");
-        let max_capacity: usize = 1000;
-        let r_push_step = (r - self.r).abs() / max_capacity as f64;
-
-        let mut wave_functions = Vec::with_capacity(max_capacity);
-        let mut positions = Vec::with_capacity(max_capacity);
+        let mut sampler = SamplingStorage::new(sampling, &self.r, &wave_init, &r_stop);
 
         let mut psi_actual = wave_init;
-        positions.push(self.r);
-        wave_functions.push(psi_actual);
-
-        while self.dr.signum() * (r - self.r) > 0.0 {
+        while self.dr.signum() * (r_stop - self.r) > 0.0 {
             self.variable_step();
 
             psi_actual = self.psi1 * psi_actual;
 
-            if (self.r - positions.last().unwrap()).abs() > r_push_step {
-                positions.push(self.r);
-                wave_functions.push(psi_actual);
-            }
+            sampler.sample(&self.r, &psi_actual);
         }
 
-        (positions, wave_functions)
+        sampler.result()
     }
 
     fn result(&self) -> NumerovResult<f64> {
@@ -244,7 +273,7 @@ where
 {
     /// Returns the g function described in the Numerov method at position r
     #[inline(always)]
-    fn g_func(&mut self, &r: &f64) -> FMatrix<N> {
+    fn g_func(&self, &r: &f64) -> FMatrix<N> {
         2.0 * self.mass * (self.energy * self.identity - self.collision_params.potential.value(&r))
     }
 }
@@ -315,7 +344,7 @@ where
         self.psi1 *= self.psi2;
     }
 
-    fn recommended_step_size(&mut self) -> f64 {
+    fn recommended_step_size(&self) -> f64 {
         let max_g_func_val = self
             .current_g_func
             .iter()
@@ -324,7 +353,7 @@ where
         let lambda = 2.0 * PI / max_g_func_val.sqrt();
         let lambda_step_ratio = 500.0;
 
-        self.step_factor * lambda / lambda_step_ratio
+        (self.step_factor * lambda / lambda_step_ratio).min(10.0)
     }
 }
 
@@ -362,30 +391,21 @@ where
         }
     }
 
-    fn propagate_values(&mut self, r: f64, wave_init: FMatrix<N>) -> (Vec<f64>, Vec<FMatrix<N>>) {
+    fn propagate_values(&mut self, r_stop: f64, wave_init: FMatrix<N>, sampling: Sampling) -> (Vec<f64>, Vec<FMatrix<N>>) {
         assert!(self.is_set_up, "Numerov method not set up");
-        let max_capacity: usize = 1000;
-        let r_push_step = (r - self.r).abs() / max_capacity as f64;
-
-        let mut wave_functions = Vec::with_capacity(max_capacity);
-        let mut positions = Vec::with_capacity(max_capacity);
+        let mut sampler = SamplingStorage::new(sampling, &self.r, &wave_init, &r_stop);
 
         let mut psi_actual = wave_init;
-        positions.push(self.r);
-        wave_functions.push(psi_actual);
 
-        while self.dr.signum() * (r - self.r) > 0.0 {
+        while self.dr.signum() * (r_stop - self.r) > 0.0 {
             self.variable_step();
 
             psi_actual = self.psi1 * psi_actual;
 
-            if (self.r - positions.last().unwrap()).abs() > r_push_step {
-                positions.push(self.r);
-                wave_functions.push(psi_actual);
-            }
+            sampler.sample(&self.r, &psi_actual);
         }
 
-        (positions, wave_functions)
+        sampler.result()
     }
 
     fn result(&self) -> NumerovResult<FMatrix<N>> {
@@ -403,7 +423,7 @@ where
 {
     /// Returns the g function described in the Numerov method at position r
     #[inline(always)]
-    fn g_func(&mut self, &r: &f64) -> CMatrix<N> {
+    fn g_func(&self, &r: &f64) -> CMatrix<N> {
         (self.identity * Complex64::from(self.energy) - self.collision_params.potential.value(&r))
             * Complex64::from(2.0 * self.mass)
     }
@@ -481,7 +501,7 @@ where
         self.psi1 *= self.psi2;
     }
 
-    fn recommended_step_size(&mut self) -> f64 {
+    fn recommended_step_size(&self) -> f64 {
         let max_g_func_val = self
             .current_g_func
             .iter()
@@ -490,7 +510,7 @@ where
         let lambda = 2.0 * PI / max_g_func_val.sqrt();
         let lambda_step_ratio = 500.0;
 
-        self.step_factor * lambda / lambda_step_ratio
+        (self.step_factor * lambda / lambda_step_ratio).min(10.0)
     }
 }
 
@@ -531,31 +551,21 @@ where
         }
     }
 
-    fn propagate_values(&mut self, r: f64, wave_init: CMatrix<N>) -> (Vec<f64>, Vec<CMatrix<N>>) {
+    fn propagate_values(&mut self, r: f64, wave_init: CMatrix<N>, sampling: Sampling) -> (Vec<f64>, Vec<CMatrix<N>>) {
         assert!(self.is_set_up, "Numerov method not set up");
-
-        let max_capacity: usize = 1000;
-        let r_push_step = (r - self.r).abs() / max_capacity as f64;
-
-        let mut wave_functions = Vec::with_capacity(max_capacity);
-        let mut positions = Vec::with_capacity(max_capacity);
+        let mut sampler = SamplingStorage::new(sampling, &self.r, &wave_init, &r);
 
         let mut psi_actual = wave_init;
-        positions.push(self.r);
-        wave_functions.push(psi_actual);
 
         while self.dr.signum() * (r - self.r) > 0.0 {
             self.variable_step();
 
             psi_actual = self.psi1 * psi_actual;
 
-            if (self.r - positions.last().unwrap()).abs() > r_push_step {
-                positions.push(self.r);
-                wave_functions.push(psi_actual);
-            }
+            sampler.sample(&self.r, &psi_actual);
         }
 
-        (positions, wave_functions)
+        sampler.result()
     }
 
     fn result(&self) -> NumerovResult<CMatrix<N>> {

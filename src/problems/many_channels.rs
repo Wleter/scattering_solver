@@ -66,7 +66,7 @@ impl ManyChannels {
 
         const N: usize = 50;
         let collision_params = Self::create_collision_params::<N>();
-        let mut numerov = RatioNumerov::new(&collision_params, 1.0);
+        let mut numerov = RatioNumerov::new(&collision_params);
 
         let energies = linspace(0.0019, 0.0022, N)
             .iter()

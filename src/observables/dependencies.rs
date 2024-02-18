@@ -35,7 +35,7 @@ impl SingleDependencies {
 
         let collisions_cloned = collision_params.clone();
 
-        let mut numerov = RatioNumerov::new(&collisions_cloned, 1.0);
+        let mut numerov = RatioNumerov::new(&collisions_cloned);
         numerov.prepare(&boundary);
         let result = numerov.result();
         let mut observable_extractor = ObservableExtractor::new(&collision_params, result);
@@ -76,7 +76,7 @@ impl SingleDependencies {
         for change in changes {
             change_function(&change, &mut collision_params);
 
-            let mut numerov = RatioNumerov::new(&collision_params, 1.0);
+            let mut numerov = RatioNumerov::new(&collision_params);
             numerov.prepare(&boundary);
             numerov.propagate_to(propagation_distance);
             let result = numerov.result();
@@ -113,7 +113,7 @@ impl SingleDependencies {
             .map_with(collision_params, |mut collision_params, change| {
                 change_function(&change, &mut collision_params);
 
-                let mut numerov = RatioNumerov::new(&collision_params, 1.0);
+                let mut numerov = RatioNumerov::new(&collision_params);
                 numerov.prepare(&boundary);
                 numerov.propagate_to(propagation_distance);
                 let result = numerov.result();
@@ -153,7 +153,7 @@ impl MultiDependencies {
 
         let collisions_cloned = collision_params.clone();
 
-        let mut numerov = RatioNumerov::new(&collisions_cloned, 1.0);
+        let mut numerov = RatioNumerov::new(&collisions_cloned);
         numerov.prepare(&boundary);
         let mut result = numerov.result();
         let mut observable_extractor = ObservableExtractor::new(&collision_params, result);
@@ -195,7 +195,7 @@ impl MultiDependencies {
         for change in changes {
             change_function(&change, &mut collision_params);
 
-            let mut numerov = RatioNumerov::new(&collision_params, 1.0);
+            let mut numerov = RatioNumerov::new(&collision_params);
             numerov.prepare(&boundary);
             numerov.propagate_to(propagation_distance);
             let result = numerov.result();
@@ -233,7 +233,7 @@ impl MultiDependencies {
             .map_with(collision_params, |mut collision_params, change| {
                 change_function(&change, &mut collision_params);
 
-                let mut numerov = RatioNumerov::new(&collision_params, 1.0);
+                let mut numerov = RatioNumerov::new(&collision_params);
                 numerov.prepare(&boundary);
                 numerov.propagate_to(propagation_distance);
                 let result = numerov.result();

@@ -4,17 +4,16 @@ use quantum::{
     particle_factory::create_atom,
     particles::Particles,
     problem_selector::ProblemSelector,
-    saving::{save_param_change, save_param_change_complex},
-    units::{energy_units::{Kelvin, Energy, CmInv}, Au}, utility::{linspace, unit_linspace},
+    saving::{save_param_change, save_param_change_complex, save_vec},
+    units::{energy_units::{CmInv, Energy, Kelvin}, Au}, utility::{linspace, unit_linspace},
 };
 use scattering_solver::{
     boundary::{Boundary, Direction},
     collision_params::CollisionParams,
     defaults::SingleDefaults,
-    numerovs::{propagator::Numerov, ratio_numerov::RatioNumerov},
+    numerovs::{propagator::{Numerov, Sampling}, ratio_numerov::RatioNumerov},
     observables::{
-        dependencies::SingleDependencies, observable_extractor::ObservableExtractor,
-        s_matrix::HasSMatrix, bound_states::SingleBounds,
+        bound_states::SingleBounds, dependencies::SingleDependencies, observable_extractor::ObservableExtractor, s_matrix::HasSMatrix
     },
     potentials::{potential::Potential, potential_factory::create_lj},
 };
@@ -65,12 +64,12 @@ impl SingleChannel {
         let start = Instant::now();
 
         let collision_params = Self::create_collision_params();
-        let mut numerov = RatioNumerov::new(&collision_params, 1.0);
+        let mut numerov = RatioNumerov::new(&collision_params);
 
         let preparation = start.elapsed();
 
         numerov.prepare(&Boundary::new(6.5, Direction::Outwards, SingleDefaults::boundary()));
-        let (rs, waves) = numerov.propagate_values(100.0, SingleDefaults::init_wave());
+        let (rs, waves) = numerov.propagate_values(100.0, SingleDefaults::init_wave(), Sampling::Uniform(1000));
         let propagation = start.elapsed() - preparation;
 
         let potential_values: Vec<f64> = rs
@@ -96,7 +95,7 @@ impl SingleChannel {
         let start = Instant::now();
 
         let collision_params = Self::create_collision_params();
-        let mut numerov = RatioNumerov::new(&collision_params, 1.0);
+        let mut numerov = RatioNumerov::new(&collision_params);
 
         let preparation = start.elapsed();
 
@@ -175,10 +174,11 @@ impl SingleChannel {
     fn bound_states() {
         println!("Calculating bound states...");
 
-        let collision_params = Self::create_collision_params();
+        let mut collision_params = Self::create_collision_params();
+        let mut bounds = SingleBounds::new(&mut collision_params, (6.5, 1000.0));
 
         let energies = unit_linspace(Energy(-200.0, CmInv), Energy(0.0, CmInv), 5000);
-        let (bound_differences, node_counts) =  SingleBounds::bound_diff_dependence(collision_params, &energies, (6.5, 70.0));
+        let (bound_differences, node_counts) =  bounds.bound_diff_dependence(&energies);
         let zipped = bound_differences
             .iter()
             .zip(node_counts.iter())
@@ -193,8 +193,15 @@ impl SingleChannel {
         ];
         save_param_change("single_chan/bound_diffs", energies, zipped, header).unwrap();
 
-        let mut collision_params = Self::create_collision_params();
-        let bound_energy = SingleBounds::n_bound_energy(&mut collision_params, -2, (6.5, 70.0), Energy(0.1, CmInv));
-        println!("Bound energy: {:.4e} cm^-1", bound_energy.to(CmInv).value());
+        let bound_states = vec![0, 1, 3, -1, -2, -5];
+        for n in bound_states {
+            let bound_energy = bounds.n_bound_energy(n, Energy(0.1, CmInv));
+            println!("n = {}, bound energy: {:.4e} cm^-1", n, bound_energy.to(CmInv).value());
+
+            let (rs, wave) = bounds.bound_wave(Sampling::Variable(1000));
+            let header = vec!["position", "wave function"];
+            let data = rs.iter().zip(wave.iter()).map(|(r, w)| vec![*r, *w]).collect();
+            save_vec(&format!("single_chan/bound_wave_{}", n), data, header).unwrap();
+        }
     }
 }
