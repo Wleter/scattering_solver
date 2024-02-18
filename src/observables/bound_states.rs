@@ -21,7 +21,9 @@ impl<P: Potential<Space = f64>> SingleBounds<'_, P> {
         P: Potential<Space = f64>    
     {
         let err = err.to_au();
-        let energy_range = (energy_range.0.to_au(), energy_range.1.to_au());
+
+        let lowest_energy = potential_minimum(&self.collision_params.potential, self.r_range, 0.1) + err;
+        let energy_range = (energy_range.0.to_au().max(lowest_energy), energy_range.1.to_au());
         let mut energies = Vec::new();
 
         self.collision_params.particles.internals.insert_value("energy", energy_range.0);
@@ -51,7 +53,7 @@ impl<P: Potential<Space = f64>> SingleBounds<'_, P> {
         let err = err.to_au();
 
         let upper_energy = self.collision_params.potential.asymptotic_value();
-        let lower_energy = potential_minimum(&self.collision_params.potential, self.r_range, 0.1);
+        let lower_energy = potential_minimum(&self.collision_params.potential, self.r_range, 0.1) + err;
 
         Energy(self.bin_search((lower_energy, upper_energy), err, n_bound), Au)
     }

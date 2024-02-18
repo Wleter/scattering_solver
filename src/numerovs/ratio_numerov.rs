@@ -131,6 +131,10 @@ where
             }
         }
 
+        if barrier == true {
+            println!("Energy below/near potential minimum, possible long computations todo!")
+        }
+
         r.min(r_lims.1)
     }
 }
