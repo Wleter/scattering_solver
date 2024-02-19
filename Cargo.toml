@@ -9,7 +9,7 @@ edition = "2021"
 rustflags = ["-C", "target-cpu=native"]
 
 [dependencies]
-quantum = { git = "https://github.com/Wleter/quantum.git", branch = "master" }
+quantum = { git = "https://github.com/Wleter/quantum.git" }
 nalgebra = { version = "*" }
 num-traits = "*"
 num = "*"

@@ -118,9 +118,10 @@ where
 
         let mut r = r_lims.0;
         self.current_g_func = self.g_func(&r);
+        let mut dr = self.recommended_step_size();
         
         while decay_factor < max_decay && r < r_lims.1 {
-            let dr = 10.0 * self.recommended_step_size();
+            get_step_size(&mut dr, self.recommended_step_size());
             r += dr;
             self.current_g_func = self.g_func(&r);
 
@@ -136,6 +137,16 @@ where
         }
 
         r.min(r_lims.1)
+    }
+}
+
+fn get_step_size(curr_dr: &mut f64, recommended_step: f64) {
+    if recommended_step > 2.0 * curr_dr.abs() {
+        *curr_dr *= 2.0;
+    } else {
+        while 1.2 * recommended_step < curr_dr.abs() {
+            *curr_dr /= 2.0;
+        }
     }
 }
 
@@ -208,7 +219,7 @@ where
         let lambda = 2.0 * PI / self.current_g_func.abs().sqrt();
         let lambda_step_ratio = 500.0;
 
-        (self.step_factor * lambda / lambda_step_ratio).min(10.0) // cap the step size at 10 to avoid huge steps
+        (self.step_factor * lambda / lambda_step_ratio).min(1.0) // cap the step size at 1 to avoid huge steps
     }
 }
 
@@ -357,7 +368,7 @@ where
         let lambda = 2.0 * PI / max_g_func_val.sqrt();
         let lambda_step_ratio = 500.0;
 
-        (self.step_factor * lambda / lambda_step_ratio).min(10.0)
+        (self.step_factor * lambda / lambda_step_ratio).min(1.0)
     }
 }
 
@@ -514,7 +525,7 @@ where
         let lambda = 2.0 * PI / max_g_func_val.sqrt();
         let lambda_step_ratio = 500.0;
 
-        (self.step_factor * lambda / lambda_step_ratio).min(10.0)
+        (self.step_factor * lambda / lambda_step_ratio).min(1.0)
     }
 }
 

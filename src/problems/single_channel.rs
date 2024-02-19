@@ -4,7 +4,7 @@ use quantum::{
     particle_factory::create_atom,
     particles::Particles,
     problem_selector::ProblemSelector,
-    saving::{save_param_change, save_param_change_complex, save_vec},
+    saving::save_data,
     units::{energy_units::{CmInv, Energy, Kelvin}, Au}, utility::{linspace, unit_linspace},
 };
 use scattering_solver::{
@@ -78,13 +78,8 @@ impl SingleChannel {
             .collect();
 
         let header = vec!["position", "wave function", "potential"];
-        let data = waves
-            .iter()
-            .zip(potential_values.iter())
-            .map(|(wave, v)| vec![*wave, *v])
-            .collect();
-
-        save_param_change("single_chan/wave_function", rs, data, header).unwrap();
+        let data = vec![rs, waves, potential_values];
+        save_data("single_chan", "wave_function", header, data).unwrap();
 
         println!("Preparation time: {:?} μs", preparation.as_micros());
         println!("Propagation time: {:?} μs", propagation.as_micros());
@@ -133,14 +128,16 @@ impl SingleChannel {
             Boundary::new(6.5, Direction::Outwards, SingleDefaults::boundary()),
         );
 
+        let scat_re = scatterings.iter().map(|s| s.re).collect();
+        let scat_im = scatterings.iter().map(|s| s.im).collect();
         let header = vec![
             "distance",
             "scattering length real",
             "scattering length imag",
         ];
+        let data = vec![rs, scat_re, scat_im];
 
-        save_param_change_complex("single_chan/propagation_distance", rs, scatterings, header)
-            .unwrap();
+        save_data("single_chan", "propagation_distance", header, data).unwrap();
     }
 
     fn mass_scaling() {
@@ -160,15 +157,17 @@ impl SingleChannel {
             Boundary::new(6.5, Direction::Outwards, SingleDefaults::boundary()),
             1e4,
         );
+        let scat_re = scatterings.iter().map(|s| s.re).collect();
+        let scat_im = scatterings.iter().map(|s| s.im).collect();
 
         let header = vec![
             "mass scale factor",
             "scattering length real",
             "scattering length imag",
         ];
+        let data = vec![scalings, scat_re, scat_im];
 
-        save_param_change_complex("single_chan/mass_scaling", scalings, scatterings, header)
-            .unwrap();
+        save_data("single_chan", "mass_scaling", header, data).unwrap();
     }
 
     fn bound_states() {
@@ -178,20 +177,18 @@ impl SingleChannel {
         let mut bounds = SingleBounds::new(&mut collision_params, (6.5, 1000.0));
 
         let energies = unit_linspace(Energy(-200.0, CmInv), Energy(0.0, CmInv), 5000);
-        let (bound_differences, node_counts) =  bounds.bound_diff_dependence(&energies);
-        let zipped = bound_differences
-            .iter()
-            .zip(node_counts.iter())
-            .map(|(diff, count)| vec![*diff, *count as f64])
-            .collect();
-        let energies = energies.iter().map(|e| e.value()).collect();
+        let (bound_diffs, node_counts) =  bounds.bound_diff_dependence(&energies);
 
+        let energies = energies.iter().map(|e| e.value()).collect();
+        let node_counts = node_counts.into_iter().map(|n| n as f64).collect();
         let header = vec![
             "energy",
             "bound difference",
             "node count",
         ];
-        save_param_change("single_chan/bound_diffs", energies, zipped, header).unwrap();
+        let data = vec![energies, bound_diffs, node_counts];
+
+        save_data("single_chan", "bound_diffs", header, data).unwrap();
 
         let bound_states = vec![0, 1, 3, -1, -2, -5];
         for n in bound_states {
@@ -199,9 +196,10 @@ impl SingleChannel {
             println!("n = {}, bound energy: {:.4e} cm^-1", n, bound_energy.to(CmInv).value());
 
             let (rs, wave) = bounds.bound_wave(Sampling::Variable(1000));
+            
             let header = vec!["position", "wave function"];
-            let data = rs.iter().zip(wave.iter()).map(|(r, w)| vec![*r, *w]).collect();
-            save_vec(&format!("single_chan/bound_wave_{}", n), data, header).unwrap();
+            let data = vec![rs, wave];
+            save_data("single_chan", &format!("bound_wave_{}", n), header, data).unwrap();
         }
     }
 }

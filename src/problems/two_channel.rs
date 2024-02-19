@@ -4,7 +4,7 @@ use quantum::{
     particle_factory::create_atom,
     particles::Particles,
     problem_selector::ProblemSelector,
-    saving::{save_param_change, save_param_change_complex},
+    saving::save_data,
     units::{energy_units::{Energy, Kelvin}, Au},
     utility::linspace
 };
@@ -79,12 +79,11 @@ impl TwoChannel {
         let propagation = start.elapsed() - preparation;
 
         let header = vec!["position", "channel 1", "channel 2"];
-        let data = waves
-            .iter()
-            .map(|wave| vec![wave[(0, 0)], wave[(0, 1)]])
-            .collect();
+        let chan_1 = waves.iter().map(|wave| wave[(0, 0)]).collect();
+        let chan_2 = waves.iter().map(|wave| wave[(0, 1)]).collect();
+        let data = vec![rs, chan_1, chan_2];
 
-        save_param_change("two_chan/wave_function", rs, data, header).unwrap();
+        save_data("two_chan", "wave_function", header, data).unwrap();
 
         println!("Preparation time: {:?} μs", preparation.as_micros());
         println!("Propagation time: {:?} μs", propagation.as_micros());
@@ -164,7 +163,10 @@ impl TwoChannel {
             "scattering length real",
             "scattering length imag",
         ];
+        let scat_re = scatterings.iter().map(|s| s.re).collect();
+        let scat_im = scatterings.iter().map(|s| s.im).collect();
+        let data = vec![scalings, scat_re, scat_im];
 
-        save_param_change_complex("two_chan/mass_scaling", scalings, scatterings, header).unwrap();
+        save_data("two_chan", "mass_scaling", header, data).unwrap();
     }
 }
