@@ -8,9 +8,6 @@ pub mod potentials;
 pub mod state;
 pub mod types;
 
-extern crate nalgebra;
-pub extern crate quantum;
-
 #[cfg(test)]
 mod tests {
     use nalgebra::Matrix3;
