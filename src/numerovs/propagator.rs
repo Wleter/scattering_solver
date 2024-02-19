@@ -137,7 +137,7 @@ impl<T: Clone> SamplingStorage<T> {
 #[derive(Debug, Clone, Copy)]
 pub enum Sampling {
     Uniform(usize),
-    Variable(usize),
+    Variable(usize), // because of cap of step size it can over prioritize wrong regions todo! 
 }
 
 impl Default for Sampling {
