@@ -4,7 +4,9 @@ use num::complex::Complex64;
 use num_traits::{One, Zero};
 
 use crate::{
-    boundary::Boundary, collision_params::CollisionParams, numerovs::propagator::SamplingStorage, potentials::potential::Potential, types::{CMatrix, FMatrix}
+    boundary::{Boundary, Direction}, collision_params::CollisionParams, 
+    numerovs::propagator::SamplingStorage, potentials::potential::Potential, 
+    types::{CMatrix, FMatrix}
 };
 
 use super::propagator::{MultiStep, Numerov, NumerovResult, Sampling};
@@ -232,8 +234,9 @@ where
         self.current_g_func = self.g_func(&boundary.r_start);
 
         self.dr = match boundary.direction {
-            crate::boundary::Direction::Inwards => -self.recommended_step_size(),
-            crate::boundary::Direction::Outwards => self.recommended_step_size(),
+            Direction::Inwards => -self.recommended_step_size(),
+            Direction::Outwards => self.recommended_step_size(),
+            Direction::Starting(dr) => dr,
         };
 
         self.psi1 = boundary.start_value;
@@ -381,8 +384,9 @@ where
 
         self.current_g_func = self.g_func(&boundary.r_start);
         self.dr = match boundary.direction {
-            crate::boundary::Direction::Inwards => -self.recommended_step_size(),
-            crate::boundary::Direction::Outwards => self.recommended_step_size(),
+            Direction::Inwards => -self.recommended_step_size(),
+            Direction::Outwards => self.recommended_step_size(),
+            Direction::Starting(dr) => dr,
         };
 
         self.psi1 = boundary.start_value;
@@ -539,8 +543,9 @@ where
         self.current_g_func = self.g_func(&boundary.r_start);
         self.dr = self.recommended_step_size();
         self.dr = match boundary.direction {
-            crate::boundary::Direction::Inwards => -self.recommended_step_size(),
-            crate::boundary::Direction::Outwards => self.recommended_step_size(),
+            Direction::Inwards => -self.recommended_step_size(),
+            Direction::Outwards => self.recommended_step_size(),
+            Direction::Starting(dr) => dr,
         };
 
         self.psi1 = boundary.start_value;

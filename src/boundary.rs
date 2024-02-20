@@ -19,4 +19,5 @@ impl<T> Boundary<T> {
 pub enum Direction {
     Inwards,
     Outwards,
+    Starting(f64),
 }
