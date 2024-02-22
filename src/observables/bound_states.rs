@@ -52,7 +52,7 @@ impl<P: Potential<Space = f64>> SingleBounds<'_, P> {
     {
         let err = err.to_au();
 
-        let upper_energy = self.collision_params.potential.asymptotic_value();
+        let upper_energy = self.collision_params.potential.value(&self.r_range.1);
         let lower_energy = potential_minimum(&self.collision_params, self.r_range, 0.1) + err;
 
         Energy(self.bin_search((lower_energy, upper_energy), err, n_bound), Au)
