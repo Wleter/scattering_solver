@@ -24,7 +24,6 @@ impl GaussianCoupling {
 impl Potential for GaussianCoupling {
     type Space = f64;
 
-    #[inline(always)]
     fn value_inplace(&self, r: &f64, destination: &mut f64) {
         *destination = self.strength * (-((r - self.center) / self.width).powi(2) / 2.0).exp()
     }

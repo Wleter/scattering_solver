@@ -30,7 +30,6 @@ where
 {
     type Space = P::Space;
 
-    #[inline(always)]
     fn value_inplace(&self, r: &f64, destination: &mut Self::Space) {
         *destination = self.potentials.iter().fold(Self::Space::zero(), |acc, p| acc + p.value(r))
     }

@@ -44,7 +44,6 @@ where
 {
     type Space = FMatrix<N>;
 
-    #[inline(always)]
     fn value_inplace(&self, r: &f64, destination: &mut FMatrix<N>) {
         for (potential, i, j) in self.potentials.iter() {
             let value = potential.value(r);

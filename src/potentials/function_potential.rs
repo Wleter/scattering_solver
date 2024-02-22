@@ -24,7 +24,6 @@ where
 {
     type Space = T;
 
-    #[inline(always)]
     fn value_inplace(&self, r: &f64, destination: &mut Self::Space) {
         *destination = (self.function)(r)
     }

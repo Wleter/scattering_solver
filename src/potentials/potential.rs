@@ -7,7 +7,6 @@ pub trait Potential: Clone + Send + Sync {
 
     fn value_inplace(&self, r: &f64, destination: &mut Self::Space);
 
-    #[inline(always)]
     fn value(&self, r: &f64) -> Self::Space {
         let mut destination = Self::Space::zero();
         self.value_inplace(r, &mut destination);
