@@ -74,7 +74,7 @@ impl SingleDependencies {
         let l = collision_params.particles.internals.get_value("l") as usize;
 
         for change in changes {
-            change_function(&change, &mut collision_params);
+            change_function(change, &mut collision_params);
 
             let mut numerov = RatioNumerov::new(&collision_params);
             numerov.prepare(&boundary);
@@ -110,15 +110,15 @@ impl SingleDependencies {
 
         let scatterings = changes
             .par_iter()
-            .map_with(collision_params, |mut collision_params, change| {
-                change_function(&change, &mut collision_params);
+            .map_with(collision_params, |collision_params, change| {
+                change_function(change, collision_params);
 
-                let mut numerov = RatioNumerov::new(&collision_params);
+                let mut numerov = RatioNumerov::new(collision_params);
                 numerov.prepare(&boundary);
                 numerov.propagate_to(propagation_distance);
                 let result = numerov.result();
 
-                let mut observable_extractor = ObservableExtractor::new(&collision_params, result);
+                let mut observable_extractor = ObservableExtractor::new(collision_params, result);
 
                 let s_matrix = observable_extractor.calculate_s_matrix(l, asymptotic);
                 s_matrix.get_scattering_length(0)
@@ -193,7 +193,7 @@ impl MultiDependencies {
         let l = collision_params.particles.internals.get_value("l") as usize;
 
         for change in changes {
-            change_function(&change, &mut collision_params);
+            change_function(change, &mut collision_params);
 
             let mut numerov = RatioNumerov::new(&collision_params);
             numerov.prepare(&boundary);
@@ -230,15 +230,15 @@ impl MultiDependencies {
 
         let scatterings = changes
             .par_iter()
-            .map_with(collision_params, |mut collision_params, change| {
-                change_function(&change, &mut collision_params);
+            .map_with(collision_params, |collision_params, change| {
+                change_function(change, collision_params);
 
-                let mut numerov = RatioNumerov::new(&collision_params);
+                let mut numerov = RatioNumerov::new(collision_params);
                 numerov.prepare(&boundary);
                 numerov.propagate_to(propagation_distance);
                 let result = numerov.result();
 
-                let mut observable_extractor = ObservableExtractor::new(&collision_params, result);
+                let mut observable_extractor = ObservableExtractor::new(collision_params, result);
 
                 let s_matrix = observable_extractor.calculate_s_matrix(l, &asymptotic);
                 s_matrix.get_scattering_length(entrance_channel)

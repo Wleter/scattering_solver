@@ -79,7 +79,7 @@ impl<P: Potential<Space = f64>> SingleBounds<'_, P> {
         }
         
         let target_nodes = if n < 0 {
-            nodes_max - n.abs() as usize + 1
+            nodes_max - n.unsigned_abs() + 1
         } else {
             n as usize
         };

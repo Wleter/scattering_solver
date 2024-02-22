@@ -133,7 +133,7 @@ where
             }
         }
 
-        if barrier == true {
+        if barrier {
             println!("Energy below/near potential minimum, possible long computations todo!")
         }
 
@@ -267,7 +267,7 @@ where
         while self.dr.signum() * (r_stop - self.r) > 0.0 {
             self.variable_step();
 
-            psi_actual = self.psi1 * psi_actual;
+            psi_actual *= psi_actual;
 
             sampler.sample(&self.r, &psi_actual);
         }

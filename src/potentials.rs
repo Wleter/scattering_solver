@@ -8,3 +8,4 @@ pub mod multi_coupling;
 pub mod multi_diag_potential;
 pub mod potential;
 pub mod potential_factory;
+pub mod null_potential;

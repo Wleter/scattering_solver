@@ -54,7 +54,7 @@ where
         let mass = self.collision_params.particles.red_mass();
 
         let momentum = (2.0 * mass * (energy - asymptotic)).sqrt();
-        assert!(momentum.is_nan() == false, "channel is closed, no S-Matrix");
+        assert!(!momentum.is_nan(), "channel is closed, no S-Matrix");
 
         let j_last = asymptotic_bessel_j(momentum * r_last, l);
         let j_prev_last = asymptotic_bessel_j(momentum * r_prev_last, l);
@@ -129,13 +129,13 @@ where
 
         let mut i_full = 0;
         for i in 0..open_channel_count {
-            while is_open_channel[i_full] == false {
+            while !is_open_channel[i_full] {
                 i_full += 1
             }
 
             let mut j_full = 0;
             for j in 0..open_channel_count {
-                while is_open_channel[j_full] == false {
+                while !is_open_channel[j_full] {
                     j_full += 1
                 }
 
