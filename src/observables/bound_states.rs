@@ -22,7 +22,7 @@ impl<P: Potential<Space = f64>> SingleBounds<'_, P> {
     {
         let err = err.to_au();
 
-        let lowest_energy = potential_minimum(&self.collision_params.potential, self.r_range, 0.1) + err;
+        let lowest_energy = potential_minimum(&self.collision_params, self.r_range, 0.1) + err;
         let energy_range = (energy_range.0.to_au().max(lowest_energy), energy_range.1.to_au());
         let mut energies = Vec::new();
 
@@ -53,7 +53,7 @@ impl<P: Potential<Space = f64>> SingleBounds<'_, P> {
         let err = err.to_au();
 
         let upper_energy = self.collision_params.potential.asymptotic_value();
-        let lower_energy = potential_minimum(&self.collision_params.potential, self.r_range, 0.1) + err;
+        let lower_energy = potential_minimum(&self.collision_params, self.r_range, 0.1) + err;
 
         Energy(self.bin_search((lower_energy, upper_energy), err, n_bound), Au)
     }
@@ -204,58 +204,7 @@ impl<P: Potential<Space = f64>> SingleBounds<'_, P> {
     }
 }
 
-fn potential_minimum(potential: &impl Potential<Space = f64>, r_range: (f64, f64), r_err: f64) -> f64 {
-    let asymptotic = potential.asymptotic_value();
-    let max_iter = 10000;
-    let mut iter = 0;
-
-    let mut r_lower = r_range.0;
-    let mut r_upper = r_range.1;
-
-    let mut r_mid = (r_upper + r_lower) / 2.0;
-    let mut potential_mid = potential.value(&r_mid);
-
-    while potential_mid > asymptotic {
-        iter += 1;
-        if iter > max_iter { panic!("Potential minimum not found"); }
-        
-        r_upper = r_mid;
-        r_mid = (r_upper + r_lower) / 2.0;
-        potential_mid = potential.value(&r_mid);
-    }
-
-    while (r_upper - r_lower).abs() > r_err {
-        r_mid = (r_upper + r_lower) / 2.0;
-        potential_mid = potential.value(&r_mid);
-        let p_shifted = potential.value(&(r_mid + r_err));
-
-        if potential_mid > p_shifted {
-            r_lower = r_mid;
-        } else {
-            r_upper = r_mid;
-        }
-    }
-
-    potential.value(&((r_upper + r_lower) / 2.0))
-}
-
-#[cfg(test)]
-mod tests {
-    use quantum::units::{energy_units::Energy, Au};
-
-    use crate::potentials::{potential::Potential, potential_factory::create_lj};
-
-    #[test]
-    fn test_potential_min() {
-        let true_min = 0.0002;
-        let r_eq = 8.0;
-        let potential = create_lj(Energy(true_min, Au), r_eq, Energy(0.0, Au));
-        let r_range = (6.0, 100.0);
-        let r_err = 0.1;
-
-        let min = super::potential_minimum(&potential, r_range, r_err);
-
-        assert!(min > -true_min);
-        assert!(min < potential.value(&(r_eq + 2.0 * r_err)));
-    }
+fn potential_minimum<P: Potential<Space = f64>>(collision_params: &CollisionParams<P>, r_range: (f64, f64), r_err: f64) -> f64 {
+    let mut numerov = RatioNumerov::new(collision_params);
+    numerov.potential_minimum(r_range, r_err)
 }

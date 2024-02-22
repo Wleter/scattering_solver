@@ -128,7 +128,7 @@ where
 
             if self.current_g_func < 0.0 && !barrier {
                 decay_factor += dr * self.current_g_func.abs().sqrt();
-            } else if self.current_g_func > 0.0 {
+            } else if self.current_g_func >= 0.0 {
                 barrier = false;
             }
         }
@@ -138,6 +138,29 @@ where
         }
 
         r.min(r_lims.1)
+    }
+
+    pub(crate) fn potential_minimum(&mut self, r_lims: (f64, f64), r_err: f64) -> f64 {
+        let mut r = r_lims.0;
+
+        let mut potential_minimum = self.collision_params.potential.value(&r);
+        self.current_g_func = self.g_func(&r);
+        let mut dr = self.recommended_step_size();
+        
+        while r < r_lims.1 {
+            get_step_size(&mut dr, self.recommended_step_size());
+            dr = dr.max(r_err);
+
+            r += dr;
+            self.current_g_func = self.g_func(&r);
+
+            let potential = self.collision_params.potential.value(&r);
+            if potential < potential_minimum {
+                potential_minimum = potential;
+            }
+        }
+
+        potential_minimum
     }
 }
 
@@ -267,7 +290,7 @@ where
         while self.dr.signum() * (r_stop - self.r) > 0.0 {
             self.variable_step();
 
-            psi_actual *= psi_actual;
+            psi_actual *= self.psi1;
 
             sampler.sample(&self.r, &psi_actual);
         }
