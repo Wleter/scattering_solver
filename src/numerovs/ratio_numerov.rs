@@ -115,7 +115,7 @@ where
         let mut barrier = true;
 
         let mut decay_factor = 0.0;
-        let max_decay = -(0.001_f64.ln());
+        let max_decay = -(1e-5.ln());
 
         let mut r = r_lims.0;
         self.current_g_func = self.g_func(&r);
