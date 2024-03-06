@@ -683,6 +683,54 @@ where
     fn g_func(&self, &r: &f64) -> DFMatrix {
         2.0 * self.mass * (self.energy * &self.identity - self.collision_params.potential.value(&r))
     }
+
+    pub(crate) fn propagate_node_counting(&mut self, r_stop: f64) -> usize {
+        let mut node_count = 0;
+        while self.r() < r_stop {
+            self.single_step();
+
+            if self.wave_last().determinant() < 0.0 {
+                node_count += 1;
+            }
+        }
+
+        node_count
+    }
+
+    pub(crate) fn potential_minimum(&mut self, r_lims: (f64, f64), r_err: f64) -> f64 {
+        let mut r = r_lims.0;
+
+        let mut potential_minimum = self.collision_params.potential.value(&r)
+            .symmetric_eigenvalues()
+            .iter()
+            .min_by(|&x, &y| x.partial_cmp(y).unwrap())
+            .unwrap()
+            .to_owned();
+
+        self.current_g_func = self.g_func(&r);
+        let mut dr = self.recommended_step_size();
+        
+        while r < r_lims.1 {
+            get_step_size(&mut dr, self.recommended_step_size());
+            dr = dr.max(r_err);
+
+            r += dr;
+            self.current_g_func = self.g_func(&r);
+
+            let potential = self.collision_params.potential.value(&r)
+                .symmetric_eigenvalues()
+                .iter()
+                .min_by(|&x, &y| x.partial_cmp(y).unwrap())
+                .unwrap()
+                .to_owned();
+
+            if potential < potential_minimum {
+                potential_minimum = potential;
+            }
+        }
+
+        potential_minimum
+    }
 }
 
 impl<'a, P> MultiStep<P> for RatioNumerov<'a, DFMatrix, P>
