@@ -26,7 +26,7 @@ impl SingleDependencies {
         boundary: Boundary<f64>,
     ) -> (Vec<f64>, Vec<Complex64>)
     where
-        P: Potential<Space = f64>,
+        P: Potential<Space = f64> + Clone,
     {
         let mut rs = Vec::with_capacity(distances.len());
         let mut scatterings = Vec::with_capacity(distances.len());
@@ -103,7 +103,7 @@ impl SingleDependencies {
         propagation_distance: f64,
     ) -> Vec<Complex64>
     where
-        P: Potential<Space = f64>,
+        P: Potential<Space = f64> + Clone + Send + Sync,
     {
         let asymptotic = collision_params.potential.asymptotic_value();
         let l = collision_params.particles.internals.get_value("l") as usize;
@@ -145,7 +145,7 @@ impl MultiDependencies {
         entrance_channel: usize,
     ) -> (Vec<f64>, Vec<Complex64>)
     where
-        P: Potential<Space = FMatrix<N>>,
+        P: Potential<Space = FMatrix<N>> + Clone,
     {
         let mut rs = Vec::with_capacity(distances.len());
         let mut scatterings = Vec::with_capacity(distances.len());
@@ -224,7 +224,7 @@ impl MultiDependencies {
         propagation_distance: f64,
     ) -> Vec<Complex64>
     where
-        P: Potential<Space = FMatrix<N>>,
+        P: Potential<Space = FMatrix<N>> + Clone + Send + Sync,
     {
         let l = collision_params.particles.internals.get_value("l") as usize;
 

@@ -44,7 +44,7 @@ impl ProblemSelector for TwoChannel {
 }
 
 impl TwoChannel {
-    fn create_collision_params() -> CollisionParams<impl Potential<Space = FMatrix<2>>> {
+    fn create_collision_params() -> CollisionParams<impl Potential<Space = FMatrix<2>> + Send + Sync + Clone> {
         let particle1 = create_atom("Li6").unwrap();
         let particle2 = create_atom("Li7").unwrap();
         let energy = Energy(1e-7, Kelvin);

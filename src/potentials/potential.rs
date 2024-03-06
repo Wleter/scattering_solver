@@ -2,7 +2,7 @@ use num_traits::{One, Zero};
 use std::iter::Sum;
 
 /// Trait defining potential functionality
-pub trait Potential: Clone + Send + Sync {
+pub trait Potential {
     type Space: Sum + Zero + One;
 
     fn value_inplace(&self, r: &f64, destination: &mut Self::Space);
