@@ -1,12 +1,10 @@
-use std::iter::Sum;
-
-use num_traits::{One, Zero};
+use crate::types::{DFMatrix, FMatrix};
 
 use super::potential::Potential;
 
 /// Potential that gives `value` according to provided function.
 #[derive(Clone)]
-pub struct FunctionPotential<T: Clone, F: Fn(&f64) -> T> {
+pub struct FunctionPotential<T, F: Fn(&f64) -> T> {
     function: F,
 }
 
@@ -17,14 +15,47 @@ impl<T: Clone, F: Fn(&f64) -> T> FunctionPotential<T, F> {
     }
 }
 
-impl<T, F> Potential for FunctionPotential<T, F>
+impl<F> Potential for FunctionPotential<f64, F>
 where
-    T: Clone + One + Zero + Sum,
-    F: Fn(&f64) -> T + Clone + Send + Sync,
+    F: Fn(&f64) -> f64
 {
-    type Space = T;
+    type Space = f64;
 
-    fn value_inplace(&self, r: &f64, destination: &mut Self::Space) {
-        *destination = (self.function)(r)
+    fn value(&self, r: &f64) -> Self::Space {
+        (self.function)(r)
+    }
+
+    fn size(&self) -> usize {
+        1
+    }
+}
+
+impl<const N: usize, F> Potential for FunctionPotential<FMatrix<N>, F>
+where
+    F: Fn(&f64) -> FMatrix<N>
+{
+    type Space = FMatrix<N>;
+
+    fn value(&self, r: &f64) -> Self::Space {
+        (self.function)(r)
+    }
+
+    fn size(&self) -> usize {
+        N
+    }
+}
+
+impl<F> Potential for FunctionPotential<DFMatrix, F>
+where
+    F: Fn(&f64) -> DFMatrix
+{
+    type Space = DFMatrix;
+
+    fn value(&self, r: &f64) -> Self::Space {
+        (self.function)(r)
+    }
+
+    fn size(&self) -> usize {
+        Self::asymptotic_value(&self).nrows()
     }
 }

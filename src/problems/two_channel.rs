@@ -1,5 +1,6 @@
 use std::{collections::VecDeque, time::Instant};
 
+use nalgebra::Const;
 use quantum::{
     particle_factory::create_atom,
     particles::Particles,
@@ -58,7 +59,7 @@ impl TwoChannel {
         let coupling = GaussianCoupling::new(Energy(10.0, Kelvin), 11.0, 2.0);
 
         let potential = MultiDiagPotential::new([potential_lj1, potential_lj2]);
-        let coupling = MultiCoupling::new_neighboring(vec![coupling]);
+        let coupling = MultiCoupling::new_neighboring(Const::<2>, vec![coupling]);
         let coupled_potential = CoupledPotential::new(potential, coupling);
 
         CollisionParams::new(particles, coupled_potential)

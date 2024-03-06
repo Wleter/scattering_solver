@@ -1,4 +1,4 @@
-use std::f64::consts::PI;
+use std::{f64::consts::PI, mem::swap};
 
 use num::complex::Complex64;
 use num_traits::{One, Zero};
@@ -6,7 +6,7 @@ use num_traits::{One, Zero};
 use crate::{
     boundary::{Boundary, Direction}, collision_params::CollisionParams, 
     numerovs::propagator::SamplingStorage, potentials::potential::Potential, 
-    types::{CMatrix, FMatrix}
+    types::{CMatrix, DFMatrix, FMatrix}
 };
 
 use super::propagator::{MultiStep, Numerov, NumerovResult, Sampling};
@@ -36,6 +36,27 @@ where
     doubled_step_before: bool,
     is_set_up: bool,
     step_factor: f64,
+}
+
+impl<'a, T, P> RatioNumerov<'a, T, P>
+where
+    P: Potential<Space = T>,
+{
+    pub fn wave_last(&self) -> &T {
+        &self.psi1
+    }
+
+    pub fn r(&self) -> f64 {
+        self.r
+    }
+
+    pub fn dr(&self) -> f64 {
+        self.dr
+    }
+
+    pub fn set_step_factor(&mut self, factor: f64) {
+        self.step_factor = factor;
+    }
 }
 
 impl<'a, T, P> RatioNumerov<'a, T, P>
@@ -70,23 +91,11 @@ where
             step_factor: 1.0,
         }
     }
-
-    pub fn wave_last(&self) -> &T {
-        &self.psi1
-    }
-
-    pub fn r(&self) -> f64 {
-        self.r
-    }
-
-    pub fn dr(&self) -> f64 {
-        self.dr
-    }
-
-    pub fn set_step_factor(&mut self, factor: f64) {
-        self.step_factor = factor;
-    }
 }
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
+// f64
+/////////////////////////////////////////////////////////////////////////////////////////////////
 
 impl<'a, P> RatioNumerov<'a, f64, P>
 where
@@ -307,6 +316,10 @@ where
     }
 }
 
+/////////////////////////////////////////////////////////////////////////////////////////////////
+// FMatrix<N>
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
 impl<'a, const N: usize, P> RatioNumerov<'a, FMatrix<N>, P>
 where
     P: Potential<Space = FMatrix<N>>,
@@ -456,6 +469,10 @@ where
         }
     }
 }
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
+// CMatrix<N>
+/////////////////////////////////////////////////////////////////////////////////////////////////
 
 impl<'a, const N: usize, P> RatioNumerov<'a, CMatrix<N>, P>
 where
@@ -613,6 +630,197 @@ where
             r_last: self.r,
             dr: self.dr,
             wave_ratio: self.psi1,
+        }
+    }
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
+// DFMatrix
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+impl<'a, P> RatioNumerov<'a, DFMatrix, P>
+where
+    P: Potential<Space = DFMatrix>,
+{
+    /// Creates a new instance of the RatioNumerov struct
+    pub fn new_dyn(collision_params: &'a CollisionParams<P>) -> Self {
+        let mass = collision_params.particles.red_mass();
+        let energy = collision_params.particles.internals.get_value("energy");
+
+        let asymptotic = collision_params.potential.asymptotic_value();
+        let size = asymptotic.nrows();
+        assert!(size == asymptotic.ncols(), "Potential matrix must be square");
+
+        Self {
+            collision_params,
+            energy,
+            mass,
+
+            r: 0.0,
+            dr: 0.0,
+            psi1: DFMatrix::zeros(size, size),
+            psi2: DFMatrix::zeros(size, size),
+
+            f1: DFMatrix::zeros(size, size),
+            f2: DFMatrix::zeros(size, size),
+            f3: DFMatrix::zeros(size, size),
+
+            identity: DFMatrix::identity(size, size),
+            current_g_func: DFMatrix::zeros(size, size),
+
+            doubled_step_before: false,
+            is_set_up: false,
+            step_factor: 1.0,
+        }
+    }
+}
+
+impl<'a, P> RatioNumerov<'a, DFMatrix, P>
+where
+    P: Potential<Space = DFMatrix>,
+{
+    /// Returns the g function described in the Numerov method at position r
+    fn g_func(&self, &r: &f64) -> DFMatrix {
+        2.0 * self.mass * (self.energy * &self.identity - self.collision_params.potential.value(&r))
+    }
+}
+
+impl<'a, P> MultiStep<P> for RatioNumerov<'a, DFMatrix, P>
+where
+    P: Potential<Space = DFMatrix>,
+{
+    fn variable_step(&mut self) {
+        self.current_g_func = self.g_func(&(self.r + self.dr));
+
+        let step_size = self.recommended_step_size();
+        if step_size > 2.0 * self.dr.abs() && !self.doubled_step_before {
+            self.doubled_step_before = true;
+            self.double_step();
+            self.current_g_func = self.g_func(&(self.r + self.dr));
+        } else {
+            self.doubled_step_before = false;
+            let mut halved = false;
+            while 1.2 * step_size < self.dr.abs() {
+                halved = true;
+                self.half_step();
+            }
+            if halved {
+                self.current_g_func = self.g_func(&(self.r + self.dr));
+            }
+        }
+
+        self.step();
+    }
+
+    fn step(&mut self) {
+        self.r += self.dr;
+
+        let f = &self.identity + self.dr * self.dr * &self.current_g_func / 12.0;
+        let psi = f.clone().try_inverse().unwrap()
+            * (12.0 * &self.identity - 10.0 * &self.f1 - &self.f2 * self.psi1.clone().try_inverse().unwrap());
+
+        swap(&mut self.f3, &mut self.f2);
+        swap(&mut self.f2, &mut self.f1);
+        self.f1 = f;
+
+        swap(&mut self.psi2, &mut self.psi1);
+        self.psi1 = psi;
+    }
+
+    fn half_step(&mut self) {
+        self.dr /= 2.0;
+
+        let f = &self.identity + self.dr * self.dr * self.g_func(&(self.r - self.dr)) / 12.0;
+        self.f1 = &self.f1 / 4.0 + 0.75 * &self.identity;
+        self.f2 = &self.f2 / 4.0 + 0.75 * &self.identity;
+
+        let psi = (12.0 * &self.identity - 10.0 * &f).try_inverse().unwrap()
+            * (&self.f1 * &self.psi1 + &self.f2);
+        self.f2 = f;
+
+        self.psi2 = psi.clone();
+        self.psi1 *= psi.try_inverse().unwrap();
+    }
+
+    fn double_step(&mut self) {
+        self.dr *= 2.0;
+
+        self.f2 = 4.0 * &self.f3 - 3.0 * &self.identity;
+        self.f1 = 4.0 * &self.f1 - 3.0 * &self.identity;
+
+        self.psi1 *= &self.psi2;
+    }
+
+    fn recommended_step_size(&self) -> f64 {
+        let max_g_func_val = self
+            .current_g_func
+            .iter()
+            .fold(0.0, |acc, &x| x.abs().max(acc));
+
+        let lambda = 2.0 * PI / max_g_func_val.sqrt();
+        let lambda_step_ratio = 500.0;
+
+        (self.step_factor * lambda / lambda_step_ratio).min(1.0)
+    }
+}
+
+impl<'a, P> Numerov<DFMatrix, P> for RatioNumerov<'a, DFMatrix, P>
+where
+    P: Potential<Space = DFMatrix>,
+{
+    fn prepare(&mut self, boundary: &Boundary<DFMatrix>) {
+        self.r = boundary.r_start;
+
+        self.current_g_func = self.g_func(&boundary.r_start);
+        self.dr = match boundary.direction {
+            Direction::Inwards => -self.recommended_step_size(),
+            Direction::Outwards => self.recommended_step_size(),
+            Direction::Starting(dr) => dr,
+        };
+
+        self.psi1 = boundary.start_value.clone();
+        self.psi2 = boundary.before_value.clone();
+
+        self.f3 = &self.identity + self.dr * self.dr * &self.g_func(&(self.r - 2.0 * self.dr)) / 12.0;
+        self.f2 = &self.identity + self.dr * self.dr * &self.g_func(&(self.r - self.dr)) / 12.0;
+        self.f1 = &self.identity + self.dr * self.dr * &self.current_g_func / 12.0;
+
+        self.is_set_up = true;
+    }
+        
+    fn single_step(&mut self) {
+        assert!(self.is_set_up, "Numerov method not set up");
+        self.variable_step();
+    }
+
+    fn propagate_to(&mut self, r: f64) {
+        while self.dr.signum() * (r - self.r) > 0.0 {
+            self.variable_step();
+        }
+    }
+
+    fn propagate_values(&mut self, r_stop: f64, wave_init: DFMatrix, sampling: Sampling) -> (Vec<f64>, Vec<DFMatrix>) {
+        assert!(self.is_set_up, "Numerov method not set up");
+        let mut sampler = SamplingStorage::new(sampling, &self.r, &wave_init, &r_stop);
+
+        let mut psi_actual = wave_init;
+
+        while self.dr.signum() * (r_stop - self.r) > 0.0 {
+            self.variable_step();
+
+            psi_actual = &self.psi1 * psi_actual;
+
+            sampler.sample(&self.r, &psi_actual);
+        }
+
+        sampler.result()
+    }
+
+    fn result(&self) -> NumerovResult<DFMatrix> {
+        NumerovResult {
+            r_last: self.r,
+            dr: self.dr,
+            wave_ratio: self.psi1.clone(),
         }
     }
 }

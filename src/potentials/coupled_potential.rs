@@ -1,21 +1,21 @@
-use crate::types::FMatrix;
+use crate::types::{DFMatrix, FMatrix};
 
 use super::potential::Potential;
 
 #[derive(Clone)]
-pub struct CoupledPotential<const N: usize, P, C>
+pub struct CoupledPotential<T, P, C>
 where
-    P: Potential<Space = FMatrix<N>>,
-    C: Potential<Space = FMatrix<N>>,
+    P: Potential<Space = T>,
+    C: Potential<Space = T>,
 {
     potential: P,
     coupling: C,
 }
 
-impl<const N: usize, P, C> CoupledPotential<N, P, C>
+impl<T, P, C> CoupledPotential<T, P, C>
 where
-    P: Potential<Space = FMatrix<N>>,
-    C: Potential<Space = FMatrix<N>>,
+    P: Potential<Space = T>,
+    C: Potential<Space = T>,
 {
     pub fn new(potential: P, coupling: C) -> Self {
         Self {
@@ -25,14 +25,34 @@ where
     }
 }
 
-impl<const N: usize, P, C> Potential for CoupledPotential<N, P, C>
+impl<const N: usize, P, C> Potential for CoupledPotential<FMatrix<N>, P, C>
 where
     P: Potential<Space = FMatrix<N>>,
     C: Potential<Space = FMatrix<N>>,
 {
     type Space = FMatrix<N>;
 
-    fn value_inplace(&self, r: &f64, destination: &mut FMatrix<N>) {
-        *destination = self.potential.value(r) + self.coupling.value(r)
+    fn value(&self, r: &f64) -> FMatrix<N> {
+        self.potential.value(r) + self.coupling.value(r)
+    }
+
+    fn size(&self) -> usize {
+        N
+    }
+}
+
+impl<P, C> Potential for CoupledPotential<DFMatrix, P, C>
+where
+    P: Potential<Space = DFMatrix>,
+    C: Potential<Space = DFMatrix>,
+{
+    type Space = DFMatrix;
+
+    fn value(&self, r: &f64) -> DFMatrix {
+        self.potential.value(r) + self.coupling.value(r)
+    }
+
+    fn size(&self) -> usize {
+        self.potential.size()
     }
 }

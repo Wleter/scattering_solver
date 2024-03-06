@@ -1,7 +1,8 @@
 use std::f64::consts::PI;
 
-use nalgebra::DMatrix;
 use num::complex::Complex64;
+
+use crate::types::DCMatrix;
 
 pub trait HasSMatrix {
     fn get_scattering_length(&self, channel: usize) -> Complex64;
@@ -37,7 +38,7 @@ impl HasSMatrix for OneChanSMatrix {
 }
 
 pub struct MultiChanSMatrix {
-    s_matrix: DMatrix<Complex64>,
+    s_matrix: DCMatrix,
     momenta: Vec<f64>,
     channels: Vec<usize>,
 
@@ -46,7 +47,7 @@ pub struct MultiChanSMatrix {
 
 impl MultiChanSMatrix {
     pub fn new(
-        s_matrix: DMatrix<Complex64>,
+        s_matrix: DCMatrix,
         momenta: Vec<f64>,
         channels: Vec<usize>,
         entrance: usize,

@@ -7,7 +7,11 @@ pub struct NullPotential;
 impl Potential for NullPotential {
     type Space = f64;
 
-    fn value_inplace(&self, _r: &f64, destination: &mut f64) {
-        *destination = 0.0;
+    fn value(&self, _r: &f64) -> f64 {
+        0.0
+    }
+
+    fn size(&self) -> usize {
+        1
     }
 }

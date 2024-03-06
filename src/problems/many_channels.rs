@@ -1,5 +1,6 @@
 use std::{collections::VecDeque, time::Instant};
 
+use nalgebra::Const;
 use quantum::{
     particle_factory::create_atom, particles::Particles, problem_selector::ProblemSelector,
     units::energy_units::{Energy, Kelvin}, utility::linspace,
@@ -55,7 +56,7 @@ impl ManyChannels {
             .collect();
 
         let potential = MultiDiagPotential::new(potentials);
-        let coupling = MultiCoupling::new_neighboring(couplings);
+        let coupling = MultiCoupling::new_neighboring(Const::<N>, couplings);
         let coupled_potential = CoupledPotential::new(potential, coupling);
         CollisionParams::new(particles, coupled_potential)
     }
