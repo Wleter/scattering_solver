@@ -9,3 +9,4 @@ pub mod multi_diag_potential;
 pub mod potential;
 pub mod potential_factory;
 pub mod null_potential;
+pub mod morse_long_range;
