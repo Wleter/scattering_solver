@@ -80,6 +80,7 @@ impl MorseLongRangeBuilder {
     }
 }
 
+#[derive(Clone)]
 pub struct MorseLongRange {
     d0: f64,
     tail: Vec<DispersionPotential>,
