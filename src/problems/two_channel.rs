@@ -50,7 +50,7 @@ impl ProblemSelector for TwoChannel {
 }
 
 impl TwoChannel {
-    fn create_collision_params() -> CollisionParams<impl Potential<Space = FMatrix<2>> + Send + Sync + Clone> {
+    fn create_collision_params() -> CollisionParams<impl Potential<Space = FMatrix<2>>> {
         let particle1 = create_atom("Li6").unwrap();
         let particle2 = create_atom("Li7").unwrap();
         let energy = Energy(1e-7, Kelvin);
@@ -70,7 +70,7 @@ impl TwoChannel {
         CollisionParams::new(particles, coupled_potential)
     }
 
-    fn create_dyn_collision_params() -> CollisionParams<impl Potential<Space = DFMatrix> + Send + Sync + Clone> {
+    fn create_dyn_collision_params() -> CollisionParams<impl Potential<Space = DFMatrix>> {
         let particle1 = create_atom("Li6").unwrap();
         let particle2 = create_atom("Li7").unwrap();
         let energy = Energy(1e-7, Kelvin);

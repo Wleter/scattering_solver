@@ -19,7 +19,7 @@ impl<P: Potential<Space = f64>> SingleBounds<'_, P> {
     pub fn bound_spectrum<U: Unit>(&mut self, energy_range: (Energy<U>, Energy<U>), err: Energy<U>) -> Vec<Energy<Au>> {
         let err = err.to_au();
 
-        let lowest_energy = potential_minimum(&self.collision_params, self.r_range, 0.1) + err;
+        let lowest_energy = potential_minimum(self.collision_params, self.r_range, 0.1) + err;
         let energy_range = (energy_range.0.to_au().max(lowest_energy), energy_range.1.to_au());
         let mut energies = Vec::new();
 
@@ -47,7 +47,7 @@ impl<P: Potential<Space = f64>> SingleBounds<'_, P> {
         let err = err.to_au();
 
         let upper_energy = self.collision_params.potential.value(&self.r_range.1);
-        let lower_energy = potential_minimum(&self.collision_params, self.r_range, 0.1) + err;
+        let lower_energy = potential_minimum(self.collision_params, self.r_range, 0.1) + err;
 
         Energy(self.bin_search((lower_energy, upper_energy), err, n_bound), Au)
     }
@@ -213,7 +213,7 @@ impl<P: Potential<Space = DFMatrix>> MultiBounds<'_, P> {
     pub fn bound_spectrum<U: Unit>(&mut self, energy_range: (Energy<U>, Energy<U>), err: Energy<U>) -> Vec<Energy<Au>> {
         let err = err.to_au();
 
-        let lowest_energy = generalized_minimum(&self.collision_params, self.r_range, 0.1) + err;
+        let lowest_energy = generalized_minimum(self.collision_params, self.r_range, 0.1) + err;
         let energy_range = (energy_range.0.to_au().min(lowest_energy), energy_range.1.to_au());
         let mut energies = Vec::new();
 
@@ -241,7 +241,7 @@ impl<P: Potential<Space = DFMatrix>> MultiBounds<'_, P> {
         let err = err.to_au();
 
         let upper_energy = self.collision_params.potential.value(&self.r_range.1).max();
-        let lower_energy = generalized_minimum(&self.collision_params, self.r_range, 0.1) + err;
+        let lower_energy = generalized_minimum(self.collision_params, self.r_range, 0.1) + err;
 
         Energy(self.bin_search((lower_energy, upper_energy), err, n_bound), Au)
     }

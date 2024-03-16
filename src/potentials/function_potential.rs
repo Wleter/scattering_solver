@@ -4,11 +4,11 @@ use super::potential::Potential;
 
 /// Potential that gives `value` according to provided function.
 #[derive(Clone)]
-pub struct FunctionPotential<T, F: Fn(&f64) -> T> {
+pub struct FunctionPotential<T, F: Fn(&f64) -> T + Send + Sync> {
     function: F,
 }
 
-impl<T: Clone, F: Fn(&f64) -> T> FunctionPotential<T, F> {
+impl<T: Clone, F: Fn(&f64) -> T + Send + Sync> FunctionPotential<T, F> {
     /// Creates new function potential with given function.
     pub fn new(function: F) -> Self {
         Self { function }
@@ -17,7 +17,7 @@ impl<T: Clone, F: Fn(&f64) -> T> FunctionPotential<T, F> {
 
 impl<F> Potential for FunctionPotential<f64, F>
 where
-    F: Fn(&f64) -> f64
+    F: Fn(&f64) -> f64 + Send + Sync + Clone
 {
     type Space = f64;
 
@@ -32,7 +32,7 @@ where
 
 impl<const N: usize, F> Potential for FunctionPotential<FMatrix<N>, F>
 where
-    F: Fn(&f64) -> FMatrix<N>
+    F: Fn(&f64) -> FMatrix<N> + Send + Sync + Clone
 {
     type Space = FMatrix<N>;
 
@@ -47,7 +47,7 @@ where
 
 impl<F> Potential for FunctionPotential<DFMatrix, F>
 where
-    F: Fn(&f64) -> DFMatrix
+    F: Fn(&f64) -> DFMatrix + Send + Sync + Clone
 {
     type Space = DFMatrix;
 
@@ -56,6 +56,6 @@ where
     }
 
     fn size(&self) -> usize {
-        Self::asymptotic_value(&self).nrows()
+        Self::asymptotic_value(self).nrows()
     }
 }

@@ -30,7 +30,7 @@ where
         Self {
             potentials,
             symmetric,
-            size: size,
+            size,
         }
     }
 

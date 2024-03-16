@@ -46,7 +46,7 @@ impl ProblemSelector for SingleChannel {
 }
 
 impl SingleChannel {
-    fn create_collision_params() -> CollisionParams<impl Potential<Space = f64> + Send + Sync + Clone> {
+    fn create_collision_params() -> CollisionParams<impl Potential<Space = f64>> {
         let particle1 = create_atom("Li6").unwrap();
         let particle2 = create_atom("Li7").unwrap();
         let energy = Energy(1e-7, Kelvin);

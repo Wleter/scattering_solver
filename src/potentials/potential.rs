@@ -1,6 +1,6 @@
 
 /// Trait defining potential functionality
-pub trait Potential {
+pub trait Potential: Clone + Send + Sync {
     type Space;
 
     fn value(&self, r: &f64) -> Self::Space;

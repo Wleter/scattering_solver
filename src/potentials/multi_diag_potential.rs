@@ -10,7 +10,7 @@ pub struct MultiDiagPotential<N: Dim, P: Potential> {
     size: N,
 }
 
-impl<const N: usize, P: Potential + Clone> MultiDiagPotential<Const<N>, P> {
+impl<const N: usize, P: Potential> MultiDiagPotential<Const<N>, P> {
     pub fn new(potentials: [P; N]) -> Self {
         Self { 
             potentials: potentials.to_vec(),
