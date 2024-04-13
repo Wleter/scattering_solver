@@ -14,7 +14,11 @@ impl ProblemSelector for Problems {
     const NAME: &'static str = "test";
 
     fn list() -> Vec<&'static str> {
-        vec!["single channel", "two channel"]
+        vec![
+            "single channel", 
+            "two channel",
+            "many channels"
+        ]
     }
 
     fn methods(number: &str, args: &mut VecDeque<String>) {

@@ -1,4 +1,4 @@
-use std::{f64::consts::PI, mem::swap};
+use std::{f64::{consts::PI, INFINITY}, mem::swap};
 
 use num::complex::Complex64;
 use num_traits::{One, Zero};
@@ -9,7 +9,7 @@ use crate::{
     types::{CMatrix, DFMatrix, FMatrix}
 };
 
-use super::propagator::{MultiStep, Numerov, NumerovResult, Sampling};
+use super::propagator::{MultiStep, Numerov, NumerovResult, Sampling, StepConfig};
 
 /// Numerov method propagating ratios of the wave function,
 /// implementing Numerov and NumerovResult trait for single channel and multi channel cases
@@ -35,7 +35,7 @@ where
 
     doubled_step_before: bool,
     is_set_up: bool,
-    step_factor: f64,
+    step_config: StepConfig,
 }
 
 impl<'a, T, P> RatioNumerov<'a, T, P>
@@ -54,8 +54,9 @@ where
         self.dr
     }
 
-    pub fn set_step_factor(&mut self, factor: f64) {
-        self.step_factor = factor;
+    pub fn set_step_config(mut self, config: StepConfig) -> Self {
+        self.step_config = config;
+        self
     }
 }
 
@@ -88,7 +89,7 @@ where
 
             doubled_step_before: false,
             is_set_up: false,
-            step_factor: 1.0,
+            step_config: StepConfig::Variable(1.0, None),
         }
     }
 }
@@ -119,7 +120,6 @@ where
         node_count
     }
 
-
     pub(crate) fn propagation_distance(&mut self, r_lims: (f64, f64)) -> f64 {
         let mut barrier = true;
 
@@ -149,7 +149,7 @@ where
         r.min(r_lims.1)
     }
 
-    pub(crate) fn potential_minimum(&mut self, r_lims: (f64, f64), r_err: f64) -> f64 {
+    pub(crate) fn potential_minimum(&mut self, r_lims: (f64, f64)) -> f64 {
         let mut r = r_lims.0;
 
         let mut potential_minimum = self.collision_params.potential.value(&r);
@@ -158,7 +158,6 @@ where
         
         while r < r_lims.1 {
             get_step_size(&mut dr, self.recommended_step_size());
-            dr = dr.max(r_err);
 
             r += dr;
             self.current_g_func = self.g_func(&r);
@@ -249,10 +248,15 @@ where
     }
 
     fn recommended_step_size(&self) -> f64 {
-        let lambda = 2.0 * PI / self.current_g_func.abs().sqrt();
-        let lambda_step_ratio = 500.0;
-
-        (self.step_factor * lambda / lambda_step_ratio).min(1.0) // cap the step size at 1 to avoid huge steps
+        match self.step_config {
+            StepConfig::Fixed(dr) => dr,
+            StepConfig::Variable(step_factor, max_value) => {
+                let lambda = 2.0 * PI / self.current_g_func.abs().sqrt();
+                let lambda_step_ratio = 500.0;
+        
+                (step_factor * lambda / lambda_step_ratio).min(max_value.unwrap_or(INFINITY))
+            }
+        }
     }
 }
 
@@ -397,15 +401,20 @@ where
     }
 
     fn recommended_step_size(&self) -> f64 {
-        let max_g_func_val = self
-            .current_g_func
-            .iter()
-            .fold(0.0, |acc, &x| x.abs().max(acc));
-
-        let lambda = 2.0 * PI / max_g_func_val.sqrt();
-        let lambda_step_ratio = 500.0;
-
-        (self.step_factor * lambda / lambda_step_ratio).min(1.0)
+        match self.step_config {
+            StepConfig::Fixed(dr) => dr,
+            StepConfig::Variable(step_factor, max_value) => {
+                let max_g_func_val = self
+                    .current_g_func
+                    .iter()
+                    .fold(0.0, |acc, &x| x.abs().max(acc));
+        
+                let lambda = 2.0 * PI / max_g_func_val.sqrt();
+                let lambda_step_ratio = 500.0;
+        
+                (step_factor * lambda / lambda_step_ratio).min(max_value.unwrap_or(INFINITY))
+            }
+        }
     }
 }
 
@@ -558,15 +567,20 @@ where
     }
 
     fn recommended_step_size(&self) -> f64 {
-        let max_g_func_val = self
-            .current_g_func
-            .iter()
-            .fold(0.0, |acc, &x| x.norm().max(acc));
-
-        let lambda = 2.0 * PI / max_g_func_val.sqrt();
-        let lambda_step_ratio = 500.0;
-
-        (self.step_factor * lambda / lambda_step_ratio).min(1.0)
+        match self.step_config {
+            StepConfig::Fixed(dr) => dr,
+            StepConfig::Variable(step_factor, max_value) => {
+                let max_g_func_val = self
+                    .current_g_func
+                    .iter()
+                    .fold(0.0, |acc, &x| x.norm().max(acc));
+    
+                let lambda = 2.0 * PI / max_g_func_val.sqrt();
+                let lambda_step_ratio = 500.0;
+        
+                (step_factor * lambda / lambda_step_ratio).min(max_value.unwrap_or(INFINITY))
+            }
+        }
     }
 }
 
@@ -670,7 +684,7 @@ where
 
             doubled_step_before: false,
             is_set_up: false,
-            step_factor: 1.0,
+            step_config: StepConfig::Variable(1.0, None),
         }
     }
 }
@@ -697,7 +711,7 @@ where
         node_count
     }
 
-    pub(crate) fn potential_minimum(&mut self, r_lims: (f64, f64), r_err: f64) -> f64 {
+    pub(crate) fn potential_minimum(&mut self, r_lims: (f64, f64)) -> f64 {
         let mut r = r_lims.0;
 
         let mut potential_minimum = self.collision_params.potential.value(&r)
@@ -712,7 +726,6 @@ where
         
         while r < r_lims.1 {
             get_step_size(&mut dr, self.recommended_step_size());
-            dr = dr.max(r_err);
 
             r += dr;
             self.current_g_func = self.g_func(&r);
@@ -800,15 +813,20 @@ where
     }
 
     fn recommended_step_size(&self) -> f64 {
-        let max_g_func_val = self
-            .current_g_func
-            .iter()
-            .fold(0.0, |acc, &x| x.abs().max(acc));
-
-        let lambda = 2.0 * PI / max_g_func_val.sqrt();
-        let lambda_step_ratio = 500.0;
-
-        (self.step_factor * lambda / lambda_step_ratio).min(1.0)
+        match self.step_config {
+            StepConfig::Fixed(dr) => dr,
+            StepConfig::Variable(step_factor, max_value) => {
+                let max_g_func_val = self
+                    .current_g_func
+                    .iter()
+                    .fold(0.0, |acc, &x| x.abs().max(acc));
+    
+                let lambda = 2.0 * PI / max_g_func_val.sqrt();
+                let lambda_step_ratio = 500.0;
+        
+                (step_factor * lambda / lambda_step_ratio).min(max_value.unwrap_or(INFINITY))
+            }
+        }
     }
 }
 

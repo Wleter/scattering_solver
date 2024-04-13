@@ -1,6 +1,6 @@
 use quantum::units::{Unit, energy_units::Energy, Au};
 
-use crate::{boundary::{Boundary, Direction}, collision_params::CollisionParams, defaults::{DynDefaults, SingleDefaults}, numerovs::{propagator::{Numerov, Sampling, SamplingStorage}, ratio_numerov::RatioNumerov}, potentials::potential::Potential, types::DFMatrix};
+use crate::{boundary::{Boundary, Direction}, collision_params::CollisionParams, defaults::{DynDefaults, SingleDefaults}, numerovs::{propagator::{Numerov, Sampling, SamplingStorage, StepConfig}, ratio_numerov::RatioNumerov}, potentials::potential::Potential, types::DFMatrix};
 
 pub struct SingleBounds<'a, P: Potential<Space = f64>> {
     collision_params: &'a mut CollisionParams<P>,
@@ -19,8 +19,8 @@ impl<P: Potential<Space = f64>> SingleBounds<'_, P> {
     pub fn bound_spectrum<U: Unit>(&mut self, energy_range: (Energy<U>, Energy<U>), err: Energy<U>) -> Vec<Energy<Au>> {
         let err = err.to_au();
 
-        let lowest_energy = potential_minimum(self.collision_params, self.r_range, 0.1) + err;
-        let energy_range = (energy_range.0.to_au().max(lowest_energy), energy_range.1.to_au());
+        let lowest_energy = potential_minimum(self.collision_params, self.r_range) + err;
+        let energy_range = (energy_range.0.to_au().max(lowest_energy + err), energy_range.1.to_au());
         let mut energies = Vec::new();
 
         self.collision_params.particles.internals.insert_value("energy", energy_range.0);
@@ -47,12 +47,11 @@ impl<P: Potential<Space = f64>> SingleBounds<'_, P> {
         let err = err.to_au();
 
         let upper_energy = self.collision_params.potential.value(&self.r_range.1);
-        let lower_energy = potential_minimum(self.collision_params, self.r_range, 0.1) + err;
+        let lower_energy = potential_minimum(self.collision_params, self.r_range) + err;
 
         Energy(self.bin_search((lower_energy, upper_energy), err, n_bound), Au)
     }
 
-    // unsafe because we assume there exist a bound state
     fn bin_search(&mut self, mut energy_range: (f64, f64), err: f64, n: isize) -> f64 {
         assert!(energy_range.1 > energy_range.0);
 
@@ -109,7 +108,8 @@ impl<P: Potential<Space = f64>> SingleBounds<'_, P> {
     }
 
     pub fn bound_wave(&self, sampling: Sampling) -> (Vec<f64>, Vec<f64>) {
-        let mut numerov = RatioNumerov::new(self.collision_params);
+        let mut numerov = RatioNumerov::new(self.collision_params)
+            .set_step_config(StepConfig::Variable(1.0, Some(5.0)));
         let r_stop = numerov.propagation_distance(self.r_range);
 
         let inwards_boundary = Boundary::new(r_stop, Direction::Inwards, SingleDefaults::boundary());
@@ -161,7 +161,8 @@ impl<P: Potential<Space = f64>> SingleBounds<'_, P> {
     }
 
     pub fn bound_diffs(&self) -> (f64, usize) {   
-        let mut numerov = RatioNumerov::new(self.collision_params);
+        let mut numerov = RatioNumerov::new(self.collision_params)
+            .set_step_config(StepConfig::Variable(1.0, Some(5.0)));
         let r_stop = numerov.propagation_distance(self.r_range);
 
         let inwards_boundary = Boundary::new(r_stop, Direction::Inwards, SingleDefaults::boundary());
@@ -186,14 +187,14 @@ impl<P: Potential<Space = f64>> SingleBounds<'_, P> {
     }
 }
 
-fn potential_minimum<P: Potential<Space = f64>>(collision_params: &CollisionParams<P>, r_range: (f64, f64), r_err: f64) -> f64 {
+fn potential_minimum<P: Potential<Space = f64>>(collision_params: &CollisionParams<P>, r_range: (f64, f64)) -> f64 {
     let mut numerov = RatioNumerov::new(collision_params);
-    numerov.potential_minimum(r_range, r_err)
+    numerov.potential_minimum(r_range)
 }
 
-fn generalized_minimum<P: Potential<Space = DFMatrix>>(collision_params: &CollisionParams<P>, r_range: (f64, f64), r_err: f64) -> f64 {
+fn generalized_minimum<P: Potential<Space = DFMatrix>>(collision_params: &CollisionParams<P>, r_range: (f64, f64)) -> f64 {
     let mut numerov = RatioNumerov::new_dyn(collision_params);
-    numerov.potential_minimum(r_range, r_err)
+    numerov.potential_minimum(r_range)
 }
 
 pub struct MultiBounds<'a, P: Potential<Space = DFMatrix>> {
@@ -213,8 +214,8 @@ impl<P: Potential<Space = DFMatrix>> MultiBounds<'_, P> {
     pub fn bound_spectrum<U: Unit>(&mut self, energy_range: (Energy<U>, Energy<U>), err: Energy<U>) -> Vec<Energy<Au>> {
         let err = err.to_au();
 
-        let lowest_energy = generalized_minimum(self.collision_params, self.r_range, 0.1) + err;
-        let energy_range = (energy_range.0.to_au().min(lowest_energy), energy_range.1.to_au());
+        let lowest_energy = generalized_minimum(self.collision_params, self.r_range) + err;
+        let energy_range = (energy_range.0.to_au().min(lowest_energy) + err, energy_range.1.to_au());
         let mut energies = Vec::new();
 
         self.collision_params.particles.internals.insert_value("energy", energy_range.0);
@@ -241,7 +242,7 @@ impl<P: Potential<Space = DFMatrix>> MultiBounds<'_, P> {
         let err = err.to_au();
 
         let upper_energy = self.collision_params.potential.value(&self.r_range.1).max();
-        let lower_energy = generalized_minimum(self.collision_params, self.r_range, 0.1) + err;
+        let lower_energy = generalized_minimum(self.collision_params, self.r_range) + err;
 
         Energy(self.bin_search((lower_energy, upper_energy), err, n_bound), Au)
     }
@@ -303,7 +304,8 @@ impl<P: Potential<Space = DFMatrix>> MultiBounds<'_, P> {
     }
 
     // pub fn bound_wave(&self, sampling: Sampling) -> (Vec<f64>, Vec<f64>) {
-    //     let mut numerov = RatioNumerov::new_dyn(self.collision_params);
+    //     let mut numerov = RatioNumerov::new_dyn(self.collision_params)
+    //             .set_step_config(StepConfig::Variable(1.0, Some(5.0)));
     //     let r_stop = numerov.propagation_distance(self.r_range);
 
     //     let inwards_boundary = Boundary::new(r_stop, Direction::Inwards, SingleDefaults::boundary());
@@ -355,7 +357,8 @@ impl<P: Potential<Space = DFMatrix>> MultiBounds<'_, P> {
     }
 
     pub fn bound_diffs(&self) -> (f64, usize) {   
-        let mut numerov = RatioNumerov::new_dyn(self.collision_params);
+        let mut numerov = RatioNumerov::new_dyn(self.collision_params)
+            .set_step_config(StepConfig::Variable(1.0, Some(5.0)));
         let size = self.collision_params.potential.size();
 
         let inwards_boundary = Boundary::new(self.r_range.1, Direction::Inwards, DynDefaults::boundary(size));

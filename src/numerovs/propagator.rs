@@ -145,3 +145,10 @@ impl Default for Sampling {
         Sampling::Uniform(1000)
     }
 }
+
+pub enum StepConfig {
+    /// Fixed step size for the propagation with given value
+    Fixed(f64),
+    /// Variable step size for the propagation with given step factor and optional maximum step size 
+    Variable(f64, Option<f64>),
+}

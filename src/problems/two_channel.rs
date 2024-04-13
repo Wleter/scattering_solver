@@ -202,7 +202,7 @@ impl TwoChannel {
         let mut collision_params = Self::create_dyn_collision_params();
         let mut bounds = MultiBounds::new(&mut collision_params, (6.5, 1000.0));
 
-        let energies = unit_linspace(Energy(-2.0, CmInv), Energy(0.0, CmInv), 5000);
+        let energies = unit_linspace(Energy(-2.0, CmInv), Energy(0.0, CmInv), 500);
         let (bound_diffs, node_counts) =  bounds.bound_diff_dependence(&energies);
 
         let energies = energies.iter().map(|e| e.value()).collect();
