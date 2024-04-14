@@ -89,7 +89,7 @@ where
 
             doubled_step_before: false,
             is_set_up: false,
-            step_config: StepConfig::Variable(1.0, None),
+            step_config: StepConfig::Variable(1.0, 0.0, INFINITY),
         }
     }
 }
@@ -250,11 +250,11 @@ where
     fn recommended_step_size(&self) -> f64 {
         match self.step_config {
             StepConfig::Fixed(dr) => dr,
-            StepConfig::Variable(step_factor, max_value) => {
+            StepConfig::Variable(step_factor, min_value, max_value) => {
                 let lambda = 2.0 * PI / self.current_g_func.abs().sqrt();
                 let lambda_step_ratio = 500.0;
         
-                (step_factor * lambda / lambda_step_ratio).min(max_value.unwrap_or(INFINITY))
+                (step_factor * lambda / lambda_step_ratio).clamp(min_value, max_value)
             }
         }
     }
@@ -403,7 +403,7 @@ where
     fn recommended_step_size(&self) -> f64 {
         match self.step_config {
             StepConfig::Fixed(dr) => dr,
-            StepConfig::Variable(step_factor, max_value) => {
+            StepConfig::Variable(step_factor, min_value, max_value) => {
                 let max_g_func_val = self
                     .current_g_func
                     .iter()
@@ -412,7 +412,7 @@ where
                 let lambda = 2.0 * PI / max_g_func_val.sqrt();
                 let lambda_step_ratio = 500.0;
         
-                (step_factor * lambda / lambda_step_ratio).min(max_value.unwrap_or(INFINITY))
+                (step_factor * lambda / lambda_step_ratio).clamp(min_value, max_value)
             }
         }
     }
@@ -569,7 +569,7 @@ where
     fn recommended_step_size(&self) -> f64 {
         match self.step_config {
             StepConfig::Fixed(dr) => dr,
-            StepConfig::Variable(step_factor, max_value) => {
+            StepConfig::Variable(step_factor, min_value, max_value) => {
                 let max_g_func_val = self
                     .current_g_func
                     .iter()
@@ -578,7 +578,7 @@ where
                 let lambda = 2.0 * PI / max_g_func_val.sqrt();
                 let lambda_step_ratio = 500.0;
         
-                (step_factor * lambda / lambda_step_ratio).min(max_value.unwrap_or(INFINITY))
+                (step_factor * lambda / lambda_step_ratio).clamp(min_value, max_value)
             }
         }
     }
@@ -684,7 +684,7 @@ where
 
             doubled_step_before: false,
             is_set_up: false,
-            step_config: StepConfig::Variable(1.0, None),
+            step_config: StepConfig::Variable(1.0, 0.0, INFINITY),
         }
     }
 }
@@ -815,7 +815,7 @@ where
     fn recommended_step_size(&self) -> f64 {
         match self.step_config {
             StepConfig::Fixed(dr) => dr,
-            StepConfig::Variable(step_factor, max_value) => {
+            StepConfig::Variable(step_factor, min_value, max_value) => {
                 let max_g_func_val = self
                     .current_g_func
                     .iter()
@@ -824,7 +824,7 @@ where
                 let lambda = 2.0 * PI / max_g_func_val.sqrt();
                 let lambda_step_ratio = 500.0;
         
-                (step_factor * lambda / lambda_step_ratio).min(max_value.unwrap_or(INFINITY))
+                (step_factor * lambda / lambda_step_ratio).clamp(min_value, max_value)
             }
         }
     }

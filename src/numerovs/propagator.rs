@@ -146,9 +146,10 @@ impl Default for Sampling {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
 pub enum StepConfig {
     /// Fixed step size for the propagation with given value
     Fixed(f64),
-    /// Variable step size for the propagation with given step factor and optional maximum step size 
-    Variable(f64, Option<f64>),
+    /// Variable step size for the propagation with given step factor and optional minimum and maximum step size 
+    Variable(f64, f64, f64),
 }

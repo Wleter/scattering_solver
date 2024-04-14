@@ -5,6 +5,7 @@ use crate::{boundary::{Boundary, Direction}, collision_params::CollisionParams, 
 pub struct SingleBounds<'a, P: Potential<Space = f64>> {
     collision_params: &'a mut CollisionParams<P>,
     r_range: (f64, f64),
+    step_config: StepConfig,
 }
 
 impl<P: Potential<Space = f64>> SingleBounds<'_, P> {
@@ -12,7 +13,13 @@ impl<P: Potential<Space = f64>> SingleBounds<'_, P> {
         SingleBounds {
             collision_params,
             r_range,
+            step_config: StepConfig::Variable(1.0, 0.01, 5.0),
         }
+    }
+
+    pub fn set_step_config(mut self, step_config: StepConfig) -> Self {
+        self.step_config = step_config;
+        self
     }
 
     /// Return ascending bound energies found in the given energy range
@@ -109,7 +116,7 @@ impl<P: Potential<Space = f64>> SingleBounds<'_, P> {
 
     pub fn bound_wave(&self, sampling: Sampling) -> (Vec<f64>, Vec<f64>) {
         let mut numerov = RatioNumerov::new(self.collision_params)
-            .set_step_config(StepConfig::Variable(1.0, Some(5.0)));
+            .set_step_config(self.step_config);
         let r_stop = numerov.propagation_distance(self.r_range);
 
         let inwards_boundary = Boundary::new(r_stop, Direction::Inwards, SingleDefaults::boundary());
@@ -162,7 +169,7 @@ impl<P: Potential<Space = f64>> SingleBounds<'_, P> {
 
     pub fn bound_diffs(&self) -> (f64, usize) {   
         let mut numerov = RatioNumerov::new(self.collision_params)
-            .set_step_config(StepConfig::Variable(1.0, Some(5.0)));
+            .set_step_config(self.step_config);
         let r_stop = numerov.propagation_distance(self.r_range);
 
         let inwards_boundary = Boundary::new(r_stop, Direction::Inwards, SingleDefaults::boundary());
@@ -200,6 +207,7 @@ fn generalized_minimum<P: Potential<Space = DFMatrix>>(collision_params: &Collis
 pub struct MultiBounds<'a, P: Potential<Space = DFMatrix>> {
     collision_params: &'a mut CollisionParams<P>,
     r_range: (f64, f64),
+    step_config: StepConfig,
 }
 
 impl<P: Potential<Space = DFMatrix>> MultiBounds<'_, P> {
@@ -207,7 +215,13 @@ impl<P: Potential<Space = DFMatrix>> MultiBounds<'_, P> {
         MultiBounds {
             collision_params,
             r_range,
+            step_config: StepConfig::Variable(1.0, 0.01, 5.0),
         }
+    }
+
+    pub fn set_step_config(mut self, step_config: StepConfig) -> Self {
+        self.step_config = step_config;
+        self
     }
 
     /// Return ascending bound energies found in the given energy range
@@ -358,7 +372,7 @@ impl<P: Potential<Space = DFMatrix>> MultiBounds<'_, P> {
 
     pub fn bound_diffs(&self) -> (f64, usize) {   
         let mut numerov = RatioNumerov::new_dyn(self.collision_params)
-            .set_step_config(StepConfig::Variable(1.0, Some(5.0)));
+            .set_step_config(self.step_config);
         let size = self.collision_params.potential.size();
 
         let inwards_boundary = Boundary::new(self.r_range.1, Direction::Inwards, DynDefaults::boundary(size));
