@@ -18,5 +18,8 @@ faer = ["dep:faer", "quantum/faer"]
 ndarray = ["dep:ndarray", "quantum/ndarray"]
 nalgebra = ["dep:nalgebra", "quantum/nalgebra"]
 
+[profile.dev.package.faer]
+opt-level = 3
+
 # [profile.release]
 # debug = true

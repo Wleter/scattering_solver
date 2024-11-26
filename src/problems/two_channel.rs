@@ -105,9 +105,8 @@ impl TwoChannel {
         let boundary = Boundary::new(6.5, Direction::Outwards, (1.001 * &id, 1.002 * &id));
         let mass = particles.red_mass();
 
-        let s_lengths: Vec<Complex<f64>> = scalings.iter().enumerate()
-            .map(|(i, scaling)| {
-                println!("{i}");
+        let s_lengths: Vec<Complex<f64>> = scalings.iter()
+            .map(|scaling| {
                 particles.get_mut::<Mass<Au>>().unwrap().0 = mass * scaling;
     
                 let mut numerov = FaerRatioNumerov::new(&potential, &particles, MultiStepRule::default(), boundary.clone());

@@ -1,16 +1,40 @@
-use std::{f64::consts::PI, mem::swap};
+use std::{f64::consts::PI, mem::swap, time::Instant};
 
 use faer::{linalg::matmul::matmul, prelude::c64, solvers::SolverCore, unzipped, zipped, Mat, MatMut};
 use quantum::{params::particles::Particles, units::{energy_units::Energy, mass_units::Mass, Au}, utility::{asymptotic_bessel_j, asymptotic_bessel_n, bessel_j_ratio, bessel_n_ratio}};
-use crate::{boundary::Boundary, numerovs::{numerov_modifier::{PropagatorModifier, SampleConfig, WaveStorage}, propagator::{MultiStep, MultiStepRule, Numerov, NumerovResult, PropagatorData, StepAction, StepRule}}, observables::s_matrix::faer::FaerSMatrix, potentials::{potential::{Potential, SimplePotential}, potential_factory::create_centrifugal}, utility::AngularSpin};
-use super::{MultiNumerovData, MultiRatioNumerovStep};
+use crate::{boundary::Boundary, numerovs::{numerov_modifier::{PropagatorModifier, SampleConfig, WaveStorage}, propagator::{MultiStep, MultiStepRule, Numerov, NumerovResult, PropagatorData, StepAction, StepRule}}, observables::s_matrix::faer::FaerSMatrix, potentials::{dispersion_potential::Dispersion, potential::{Potential, SimplePotential}, potential_factory::create_centrifugal}, utility::{faer::inverse_inplace, AngularSpin}};
+use super::MultiRatioNumerovStep;
 
-type MultiNumerovDataFaer<'a, P> = MultiNumerovData<'a, Mat<f64>, P>;
+#[derive(Clone)]
+pub struct MultiNumerovDataFaer<'a, P>
+where 
+    P: Potential<Space = Mat<f64>>
+{
+    pub(super) r: f64,
+    pub(super) dr: f64,
+
+    pub(super) potential: &'a P,
+    pub(super) centrifugal: Option<Dispersion>,
+    pub(super) mass: f64,
+    pub(super) energy: f64,
+    pub(super) l: AngularSpin,
+
+    pub(super) potential_buffer: Mat<f64>,
+    pub(super) unit: Mat<f64>,
+    pub(super) current_g_func: Mat<f64>,
+
+    pub(super) psi1: Mat<f64>,
+    pub(super) psi2: Mat<f64>,
+
+    pub(super) perm: Vec<usize>,
+    pub(super) perm_inv: Vec<usize>,
+}
+
 
 pub type FaerRatioNumerov<'a, P> = Numerov<
-MultiNumerovDataFaer<'a, P>, 
-MultiStepRule<MultiNumerovDataFaer<'a, P>>, 
-MultiRatioNumerovStep<Mat<f64>>
+    MultiNumerovDataFaer<'a, P>, 
+    MultiStepRule<MultiNumerovDataFaer<'a, P>>, 
+    MultiRatioNumerovStep<Mat<f64>>
 >;
 
 impl<P> MultiNumerovDataFaer<'_, P> 
@@ -19,6 +43,7 @@ where
 {
     pub fn get_g_func(&mut self, r: f64, out: MatMut<f64>) {
         self.potential.value_inplace(r, &mut self.potential_buffer);
+
 
         if let Some(centr) = &self.centrifugal {
             let centr = centr.value(r);
@@ -165,6 +190,8 @@ where
             current_g_func: Mat::zeros(size, size),
             psi1: Mat::zeros(size, size),
             psi2: Mat::zeros(size, size),
+            perm: vec![0; size],
+            perm_inv: vec![0; size]
         };
 
         data.current_g_func();
@@ -205,7 +232,7 @@ where
     }
 }
 
-impl<P> PropagatorData for MultiNumerovData<'_, Mat<f64>, P> 
+impl<P> PropagatorData for MultiNumerovDataFaer<'_, P> 
 where 
     P: Potential<Space = Mat<f64>>
 {
@@ -283,11 +310,9 @@ where
                 b1.write(u.read() + data.dr * data.dr / 12. * c.read())
             );
 
-        let mut piv = self.buffer1.partial_piv_lu();
-        self.f3 = piv.inverse();
+        inverse_inplace(self.buffer1.as_ref(), self.f3.as_mut(), &mut data.perm, &mut data.perm_inv);
 
-        piv = data.psi1.partial_piv_lu();
-        data.psi2 = piv.inverse();
+        inverse_inplace(data.psi1.as_ref(), data.psi2.as_mut(), &mut data.perm, &mut data.perm_inv);
         matmul(self.buffer2.as_mut(), self.f2.as_ref(), data.psi2.as_ref(), None, 1., faer::Parallelism::None);
         zipped!(self.buffer2.as_mut(), data.unit.as_ref(), self.f1.as_ref())
             .for_each(|unzipped!(mut b2, u, f1)| 
@@ -321,8 +346,7 @@ where
                 b1.write(2. * u.read() - data.dr * data.dr * 10. / 12. * b1.read())
             );
 
-        let mut piv = self.buffer1.partial_piv_lu();
-        self.buffer2 = piv.inverse(); // todo! consider inverse inplace?
+        inverse_inplace(self.buffer1.as_ref(), self.buffer2.as_mut(), &mut data.perm, &mut data.perm_inv);
 
         zipped!(self.f2.as_mut(), data.unit.as_ref(), self.buffer1.as_ref())
             .for_each(|unzipped!(mut f2, u, b1)| 
@@ -333,8 +357,7 @@ where
         self.buffer1 += self.f2.as_ref();
         matmul(data.psi2.as_mut(), self.buffer2.as_ref(), self.buffer1.as_ref(), None, 1., faer::Parallelism::None);
 
-        piv = data.psi2.partial_piv_lu();
-        self.buffer1 = piv.inverse();
+        inverse_inplace(data.psi2.as_ref(), self.buffer1.as_mut(), &mut data.perm, &mut data.perm_inv);
 
         matmul(self.buffer2.as_mut(), data.psi1.as_ref(), self.buffer1.as_ref(), None, 1., faer::Parallelism::None);
         swap(&mut data.psi1, &mut self.buffer2);
