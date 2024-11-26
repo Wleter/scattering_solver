@@ -1,3 +1,4 @@
+#[derive(Clone, Debug)]
 pub struct Boundary<T> {
     pub r_start: f64,
     pub direction: Direction,
@@ -16,8 +17,9 @@ impl<T> Boundary<T> {
     }
 }
 
+#[derive(Clone, Copy, Debug)]
 pub enum Direction {
     Inwards,
     Outwards,
-    Starting(f64),
+    Step(f64),
 }

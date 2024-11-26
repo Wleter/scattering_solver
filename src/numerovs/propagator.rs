@@ -1,22 +1,94 @@
-use std::mem::take;
+use std::marker::PhantomData;
 
-use crate::{boundary::Boundary, potentials::potential::Potential};
+use super::numerov_modifier::PropagatorModifier;
 
-pub(super) trait MultiStep<P: Potential> {
+pub trait PropagatorData {
+    fn crossed_distance(&self, r: f64) -> bool;
+
+    fn step_size(&self) -> f64;
+
+    fn current_g_func(&mut self);
+
+    fn advance(&mut self);
+}
+
+pub trait MultiStep<D: PropagatorData> {
     /// Performs a step with the same step size
-    fn step(&mut self);
+    fn step(&mut self, data: &mut D);
 
-    /// Halves the step size without performing a step
-    fn half_step(&mut self);
+    /// Halves the step size without actually performing a step
+    fn halve_step(&mut self, data: &mut D);
 
-    /// Doubles the step size without performing a step
-    fn double_step(&mut self);
+    /// Doubles the step size without actually performing a step
+    fn double_step(&mut self, data: &mut D);
+}
 
-    /// Returns the recommended step size for the current step
-    fn recommended_step_size(&self) -> f64;
+pub enum StepAction {
+    Keep,
+    Double,
+    Halve,
+}
 
-    /// Performs a step with a variable step size
-    fn variable_step(&mut self);
+pub trait StepRule<D: PropagatorData> {
+    fn get_step(&self, data: &D) -> f64;
+
+    fn assign(&mut self, data: &D) -> StepAction;
+}
+
+pub struct SingleStepRule {
+    pub(crate) step: f64
+}
+
+impl<D: PropagatorData> StepRule<D> for SingleStepRule {
+    fn get_step(&self, _data: &D) -> f64 {
+        self.step
+    }
+    
+    fn assign(&mut self, data: &D) -> StepAction {
+        let prop_step = data.step_size();
+
+        if prop_step > 1.2 * self.step {
+            StepAction::Halve
+        } else if prop_step < 2. * self.step {
+            StepAction::Double
+        } else {
+            StepAction::Keep
+        }
+    }
+}
+
+pub struct MultiStepRule<D> {
+    pub(super) wave_step_ratio: f64,
+
+    pub(super) min_step: f64,
+    pub(super) max_step: f64,
+
+    pub(super) doubled_step: bool,
+    phantom: PhantomData<D>,
+}
+
+impl<D> Default for MultiStepRule<D> {
+    fn default() -> Self {
+        Self { 
+            doubled_step: false,
+            min_step: 0., 
+            max_step: f64::MAX,
+            phantom: PhantomData,
+            wave_step_ratio: 500.,
+        }
+    }
+}
+
+impl<D> MultiStepRule<D> {
+    pub fn new(min_step: f64, max_step: f64, wave_step_ratio: f64) -> Self {
+        Self {
+            doubled_step: false,
+            min_step, 
+            max_step,
+            phantom: PhantomData,
+            wave_step_ratio,
+        }
+    }
 }
 
 /// Struct storing the result of a Numerov propagation
@@ -30,126 +102,68 @@ pub struct NumerovResult<T> {
     pub wave_ratio: T,
 }
 
-/// A trait for Numerov propagator
-pub trait Numerov<T, P: Potential<Space = T>> {
-    /// Prepares the propagator for a new propagation
-    /// starting from position r and with a boundary condition
-    /// `psi(r) = boundary.0` and `psi(r - dr) = boundary.1`
-    fn prepare(&mut self, boundary: &Boundary<T>);
-
-    /// Performs a single step of the propagation
-    /// [`prepare`] must be called before calling this method.
-    fn single_step(&mut self);
-
-    /// Propagate the wave function until position is larger than r.
-    /// [`prepare`] must be called before calling this method.
-    fn propagate_to(&mut self, r: f64);
-
-    /// Propagate the wave function until position is larger than r
-    /// with a initial value of a wave function `wave_init`.
-    /// [`prepare`] must be called before calling this method.
-    /// Return the list of positions and the corresponding wave function values
-    fn propagate_values(&mut self, r_stop: f64, wave_init: T, sampling: Sampling) -> (Vec<f64>, Vec<T>);
-
-    /// Returns the result of the propagation
-    fn result(&self) -> NumerovResult<T>;
+pub struct Numerov<D, S, M> 
+where 
+    D: PropagatorData,
+    S: StepRule<D>,
+    M: MultiStep<D>
+{
+    pub data: D,
+    pub(crate) step_rules: S,
+    pub(crate) multi_step: M,
 }
 
-pub(crate) struct SamplingStorage<T> {
-    rs: Vec<f64>,
-    waves: Vec<T>,
-    sample_each: Option<usize>,
-    sample_step: Option<f64>,
-    counter: usize,
-}
-
-impl<T: Clone> SamplingStorage<T> {
-    pub fn new(sampling: Sampling, r: &f64, wave: &T, r_stop: &f64) -> Self {
-        let capacity = match sampling {
-            Sampling::Uniform(capacity) => capacity,
-            Sampling::Variable(capacity) => capacity,
-        };
-
-        let mut rs = Vec::with_capacity(capacity);
-        let mut waves = Vec::with_capacity(capacity);
-        rs.push(*r);
-        waves.push(wave.clone());
-
-        let sample_each = match sampling {
-            Sampling::Uniform(_) => None,
-            Sampling::Variable(_) => Some(1),
-        };
-
-        let sample_step = match sampling {
-            Sampling::Uniform(_) => Some((r_stop - r).abs() / capacity as f64),
-            Sampling::Variable(_) => None,
-        };
-
-        Self { 
-            rs,
-            waves,
-            sample_each,
-            sample_step,
-            counter: 0,
+impl<D, S, M> Numerov<D, S, M> 
+where 
+    D: PropagatorData,
+    S: StepRule<D>,
+    M: MultiStep<D>
+{
+    pub fn propagate_to(&mut self, r: f64) {
+        while !self.data.crossed_distance(r) {
+            self.variable_step();
         }
     }
 
-    pub fn sample(&mut self, r: &f64, wave: &T) {
-        if let Some(sample_each) = self.sample_each {
-            self.counter += 1;
-            if self.counter % sample_each == 0 {
-                self.rs.push(*r);
-                self.waves.push(wave.clone());
-            }
+    pub fn propagate_to_with<P: PropagatorModifier<D>>(&mut self, r: f64, modifier: &mut P) {
+        modifier.before(&mut self.data, r);
+        
+        while !self.data.crossed_distance(r) {
+            self.variable_step();
+            modifier.after_step(&mut self.data);
+        }
 
-            if self.rs.len() == self.rs.capacity() {
-                self.sample_each = Some(2 * sample_each);
-                // delete every second element
-                let rs = take(&mut self.rs);
-                let waves = take(&mut self.waves);
+        modifier.after_prop(&mut self.data);
+    }
 
-                self.rs = rs.into_iter()
-                    .enumerate()
-                    .filter(|(i, _)| i % 2 == 1)
-                    .map(|(_, r)| r)
-                    .collect();
+    pub fn variable_step(&mut self) {
+        self.data.current_g_func();
+        let mut action = self.step_rules.assign(&self.data);
 
-                self.waves = waves.into_iter()
-                    .enumerate()
-                    .filter(|(i, _)| i % 2 == 1)
-                    .map(|(_, w)| w)
-                    .collect();
-            }
+        if let StepAction::Double = action {
+            self.multi_step.double_step(&mut self.data);
+            self.data.current_g_func();
+        }
 
-        } else if let Some(sample_step) = self.sample_step {
-            if (r - self.rs.last().unwrap()).abs() > sample_step {
-                self.rs.push(*r);
-                self.waves.push(wave.clone());
-            }
+        let mut halved = false;
+        while let StepAction::Halve = action {
+            self.multi_step.halve_step(&mut self.data);
+            action = self.step_rules.assign(&self.data);
+            halved = true;
+        };
+
+        if halved {
+            self.data.current_g_func();
+        }
+
+        self.multi_step.step(&mut self.data);
+    }
+
+    pub fn change_step_rule<S2: StepRule<D>>(self, step_rules: S2) -> Numerov<D, S2, M> {
+        Numerov {
+            data: self.data,
+            step_rules: step_rules,
+            multi_step: self.multi_step
         }
     }
-
-    pub fn result(self) -> (Vec<f64>, Vec<T>) {
-        (self.rs, self.waves)
-    }
-}
-
-#[derive(Debug, Clone, Copy)]
-pub enum Sampling {
-    Uniform(usize),
-    Variable(usize), // because of cap of step size it can over prioritize wrong regions todo! 
-}
-
-impl Default for Sampling {
-    fn default() -> Self {
-        Sampling::Uniform(1000)
-    }
-}
-
-#[derive(Debug, Clone, Copy)]
-pub enum StepConfig {
-    /// Fixed step size for the propagation with given value
-    Fixed(f64),
-    /// Variable step size for the propagation with given step factor and optional minimum and maximum step size 
-    Variable(f64, f64, f64),
 }

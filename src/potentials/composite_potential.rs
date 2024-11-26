@@ -1,40 +1,51 @@
-use std::iter::Sum;
-
-use num_traits::Zero;
-
-use super::potential::Potential;
+use super::potential::{Potential, SubPotential};
 
 /// Composite potential that has value equal to the sum of its components
 #[derive(Debug, Clone)]
-pub struct CompositePotential<P: Potential> {
+pub struct Composite<P: SubPotential> {
+    main_potential: P,
     potentials: Vec<P>,
 }
 
-impl<P: Potential> CompositePotential<P> {
-    pub fn new() -> Self {
+impl<P: SubPotential> Composite<P> {
+    pub fn new(main_potential: P) -> Self {
         Self {
+            main_potential,
             potentials: Vec::new(),
         }
     }
 
     pub fn add_potential(&mut self, potential: P) -> &mut Self {
+        assert!(self.main_potential.size() == potential.size());
+
         self.potentials.push(potential);
 
         self
     }
 }
 
-impl<P: Potential> Potential for CompositePotential<P> 
-where
-    P::Space: Zero + Sum,
-{
-    type Space = P::Space;
+impl<P: SubPotential> Potential for Composite<P> {
+    type Space = <P as Potential>::Space;
+    
+    fn value_inplace(&self, r: f64, value: &mut Self::Space) {
+        self.main_potential.value_inplace(r, value);
 
-    fn value(&self, r: &f64) -> Self::Space {
-        self.potentials.iter().fold(Self::Space::zero(), |acc, p| acc + p.value(r))
+        for potential in &self.potentials {
+            potential.value_add(r, value);
+        }
     }
-
+    
     fn size(&self) -> usize {
-        self.potentials.first().unwrap().size()
+        self.main_potential.size()
+    }
+}
+
+impl<P: SubPotential> SubPotential for Composite<P> {
+    fn value_add(&self, r: f64, value: &mut Self::Space) {
+        self.main_potential.value_add(r, value);
+        
+        for potential in &self.potentials {
+            potential.value_add(r, value);
+        }
     }
 }

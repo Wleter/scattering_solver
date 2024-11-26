@@ -1,29 +1,32 @@
-use quantum::units::{Unit, energy_units::Energy};
+use super::potential::{Potential, SubPotential};
 
-use super::potential::Potential;
-
-/// Potential of the form d0 * r^n + v0
+/// Potential of the form d0 * r^n
 #[derive(Debug, Clone)]
-pub struct DispersionPotential {
+pub struct Dispersion {
     pub d0: f64,
     pub n: i32,
-    pub v0: f64,
 }
 
-impl DispersionPotential {
-    pub fn new<U: Unit>(d0: Energy<U>, n: i32, v0: f64) -> Self {
-        Self { d0: d0.to_au(), n, v0 }
+impl Dispersion {
+    pub fn new(d0: f64, n: i32) -> Self {
+        Self { d0: d0, n, }
     }
 }
 
-impl Potential for DispersionPotential {
+impl Potential for Dispersion {
     type Space = f64;
 
-    fn value(&self, r: &f64) -> f64 {
-        self.d0 * r.powi(self.n) + self.v0
+    fn value_inplace(&self, r: f64, value: &mut Self::Space) {
+        *value = self.d0 * r.powi(self.n);
     }
-
+    
     fn size(&self) -> usize {
         1
+    }
+}
+
+impl SubPotential for Dispersion {
+    fn value_add(&self, r: f64, value: &mut Self::Space) {
+        *value += self.d0 * r.powi(self.n);
     }
 }

@@ -3,23 +3,20 @@ name = "scattering_solver"
 version = "0.1.0"
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
-[build]
-rustflags = ["-C", "target-cpu=native"]
-
 [dependencies]
+num-traits = "0.2.19"
+num = "0.4.3"
+rayon = "1.10.0"
 quantum = { git = "https://github.com/Wleter/quantum.git" }
-nalgebra = { version = "*" }
-num-traits = "*"
-num = "*"
-ndarray = "*"
-ndarray-linalg = "*"
-rayon = "*"
+faer = { version = "0.19.4", optional = true }
+ndarray = { version = "0.16.1", optional = true }
+nalgebra = { version = "0.33.0", optional = true }
 
-[profile.release]
-opt-level = 3
-codegen-units = 1
-lto = "thin"
-panic = "abort"
-debug = true
+[features]
+default = ["faer"]
+faer = ["dep:faer", "quantum/faer"]
+ndarray = ["dep:ndarray", "quantum/ndarray"]
+nalgebra = ["dep:nalgebra", "quantum/nalgebra"]
+
+# [profile.release]
+# debug = true

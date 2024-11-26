@@ -1,12 +1,12 @@
-use quantum::units::{energy_units::Energy, Unit};
+use quantum::units::{energy_units::Energy, Au};
 
-use super::{dispersion_potential::DispersionPotential, potential::Potential};
+use super::{dispersion_potential::Dispersion, potential::{Potential, SimplePotential}};
 
 
 pub struct MorseLongRangeBuilder {
     d0: f64,
     r_e: f64,
-    tail: Vec<DispersionPotential>,
+    tail: Vec<Dispersion>,
 
     p: Option<i32>,
     q: Option<i32>,
@@ -17,7 +17,7 @@ pub struct MorseLongRangeBuilder {
 }
 
 impl MorseLongRangeBuilder {
-    pub fn new<U: Unit>(d0: Energy<U>, r_e: f64, tail: Vec<DispersionPotential>) -> Self {
+    pub fn new(d0: Energy<Au>, r_e: f64, tail: Vec<Dispersion>) -> Self {
         let d0 = d0.to_au();
 
         Self {
@@ -58,9 +58,9 @@ impl MorseLongRangeBuilder {
         let betas = self.betas;
 
         let tail_re: f64 = if let Some(rho) = rho {
-            self.tail.iter().map(|tail| douketis_damping(r_e, rho, -tail.n) * tail.value(&r_e)).sum()
+            self.tail.iter().map(|tail| douketis_damping(r_e, rho, -tail.n) * tail.value(r_e)).sum()
         } else {
-            self.tail.iter().map(|tail| tail.value(&r_e)).sum()
+            self.tail.iter().map(|tail| tail.value(r_e)).sum()
         };
         
         let b_inf = (2.0f64 * self.d0 / tail_re).ln();
@@ -83,7 +83,7 @@ impl MorseLongRangeBuilder {
 #[derive(Clone)]
 pub struct MorseLongRange {
     d0: f64,
-    tail: Vec<DispersionPotential>,
+    tail: Vec<Dispersion>,
     p: i32,
     q: i32,
     r_ref: f64,
@@ -99,12 +99,12 @@ impl MorseLongRange {
     fn u_lr(&self, r: f64) -> f64 {
         if let Some(rho) = self.rho {
             self.tail.iter()
-            .map(|tail| douketis_damping(r, rho, -tail.n) * tail.value(&r))
-            .sum()
+                .map(|tail| douketis_damping(r, rho, -tail.n) * tail.value(r))
+                .sum()
         } else {
             self.tail.iter()
-            .map(|tail| tail.value(&r))
-            .sum()
+                .map(|tail| tail.value(r))
+                .sum()
         }
     }
     
@@ -123,51 +123,24 @@ impl MorseLongRange {
 
 impl Potential for MorseLongRange {
     type Space = f64;
-    
-    fn value(&self, r: &f64) -> f64 {
-        let r = *r;
-        self.d0 * (1. - self.u_lr(r) / self.tail_re * (-self.beta(r) * y_func(r, self.p, self.r_e)).exp()).powi(2) - self.d0
+
+    fn value_inplace(&self, r: f64, value: &mut f64) {
+        let exponent = (-self.beta(r) * y_func(r, self.p, self.r_e)).exp();
+
+        *value = self.d0 * (1. - self.u_lr(r) / self.tail_re * exponent).powi(2) - self.d0
     }
     
     fn size(&self) -> usize {
         1
     }
-
 }
 
-#[inline(always)]
+#[inline]
 fn douketis_damping(r: f64, rho: f64, m: i32) -> f64 {
     (1. - (-(3.3 + 0.423 * rho * r) * rho * r / (m as f64)).exp()).powi(m - 1)
 }
 
-#[inline(always)]
+#[inline]
 fn y_func(r: f64, n: i32, x: f64) -> f64 {
     (r.powi(n) - x.powi(n)) / (r.powi(n) + x.powi(n))
-}
-
-
-#[cfg(test)]
-mod test {
-    use super::*;
-    use quantum::units::{energy_units::{CmInv, Energy}, Au};
-
-    #[test]
-    fn test_morse() {
-        let d0 = Energy(333.7795, CmInv);
-        let tail = vec![
-            DispersionPotential::new(Energy(1394.180, Au), -6, 0.0),
-            DispersionPotential::new(Energy(83461.675549, Au), -8, 0.0),
-            DispersionPotential::new(Energy(7374640.77, Au), -10, 0.0),
-        ];
-        
-        let morse = MorseLongRangeBuilder::new(d0, 7.880185, tail)
-            .set_params(5, 3, 15.11784, 0.54)
-            .set_betas(vec![-0.516129, -0.0980, 0.1133, -0.0251])
-            .build();
-
-        let r = 7.880185;
-        let val = Energy(morse.value(&r), Au).to(CmInv);
-
-        assert!(d0.value() + val.value() < 1e-3, "Expected: {}, Got: {}", d0.value(), val.value());
-    }
 }

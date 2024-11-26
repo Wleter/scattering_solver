@@ -1,32 +1,27 @@
-use std::collections::VecDeque;
+use many_channels::ManyChannels;
+use quantum::problems_impl;
 
-use quantum::problem_selector::ProblemSelector;
-
-use self::{many_channels::ManyChannels, single_channel::SingleChannel, two_channel::TwoChannel};
-
-pub mod many_channels;
-pub mod single_channel;
+use self::single_channel::SingleChannel;
+#[cfg(feature = "faer")]
 pub mod two_channel;
+#[cfg(feature = "faer")]
+use two_channel::TwoChannel;
+#[cfg(feature = "faer")]
+pub mod single_channel;
+#[cfg(feature = "faer")]
+pub mod many_channels;
 
 pub struct Problems {}
 
-impl ProblemSelector for Problems {
-    const NAME: &'static str = "test";
+#[cfg(not(feature = "faer"))]
+problems_impl!(Problems, "test",
+    "single channel" => SingleChannel::select
+);
 
-    fn list() -> Vec<&'static str> {
-        vec![
-            "single channel", 
-            "two channel",
-            "many channels"
-        ]
-    }
+#[cfg(feature = "faer")]
+problems_impl!(Problems, "test",
+    "single channel" => SingleChannel::select,
+    "two channel" => TwoChannel::select,
+    "many channel" => ManyChannels::select
+);
 
-    fn methods(number: &str, args: &mut VecDeque<String>) {
-        match number {
-            "0" => SingleChannel::select(args),
-            "1" => TwoChannel::select(args),
-            "2" => ManyChannels::select(args),
-            _ => println!("No method found for number {}", number),
-        }
-    }
-}
