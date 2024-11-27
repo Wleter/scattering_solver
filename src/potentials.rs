@@ -13,6 +13,9 @@ pub mod multi_coupling;
 #[cfg(any(feature = "faer", feature = "ndarray", feature = "nalgebra"))]
 pub mod multi_diag_potential;
 
+#[cfg(any(feature = "faer", feature = "ndarray", feature = "nalgebra"))]
+pub mod masked_potential;
+
 #[cfg(test)]
 mod test {
     use quantum::units::{distance_units::Distance, energy_units::{CmInv, Energy}, Au};

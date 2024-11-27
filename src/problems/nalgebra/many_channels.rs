@@ -30,7 +30,7 @@ impl ManyChannels {
         let potentials = wells.iter()
             .map(|well| {
                 let mut potential = create_lj(Energy(*well, Au), Distance(9.0, Au));
-                potential.add_potential(Dispersion::new(well - 0.0019, 0));
+                potential.add_potential(Dispersion::new(Energy(well / 0.0019 - 1.0, Kelvin).to_au(), 0));
 
                 potential
             })
