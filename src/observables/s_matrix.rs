@@ -82,6 +82,53 @@ pub mod faer {
     }
 }
 
+#[cfg(feature = "nalgebra")]
+pub mod nalgebra {
+    use std::f64::consts::PI;
+
+    use nalgebra::DMatrix;
+    use num::{complex::Complex64, Complex};
+
+    use super::HasSMatrix;
+
+    pub struct NalgebraSMatrix {
+        s_matrix: DMatrix<Complex64>,
+        momenta: Vec<f64>,
+        entrance: usize,
+    }
+
+    impl NalgebraSMatrix {
+        pub fn new(s_matrix: DMatrix<Complex64>, momenta: Vec<f64>, entrance: usize) -> Self {
+            Self {
+                s_matrix,
+                momenta,
+                entrance,
+            }
+        }
+    }
+
+    impl HasSMatrix for NalgebraSMatrix {
+        fn get_scattering_length(&self) -> num::complex::Complex64 {
+            let s_element: Complex<f64> = self.s_matrix[(self.entrance, self.entrance)].into();
+
+            1.0 / Complex64::new(0.0, self.momenta[self.entrance]) * (1.0 - s_element) / (1.0 + s_element)
+        }
+    
+        fn get_elastic_cross_sect(&self) -> f64 {
+            let s_element: Complex<f64> = self.s_matrix[(self.entrance, self.entrance)].into();
+
+            PI / self.momenta[self.entrance].powi(2) * (1.0 - s_element).norm_sqr()
+        }
+    
+        fn get_inelastic_cross_sect(&self) -> f64 {
+            let s_element: Complex<f64> = self.s_matrix[(self.entrance, self.entrance)].into();
+
+            PI / self.momenta[self.entrance].powi(2) * (1.0 - s_element.norm()).powi(2)
+        }
+    }
+}
+
+
 // if self.entrance == channel {
 //     PI / self.momenta[channel].powi(2)
 //         * (1.0 - self.s_matrix[(channel, channel)].norm()).powi(2)

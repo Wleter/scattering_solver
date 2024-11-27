@@ -1,8 +1,8 @@
 use std::time::Instant;
 
-use faer::Mat;
+use nalgebra::DMatrix;
 use quantum::{params::{particle_factory::create_atom, particles::Particles}, problems_impl, units::{distance_units::Distance, energy_units::{Energy, Kelvin}, Au}, utility::linspace};
-use scattering_solver::{boundary::{Boundary, Direction}, numerovs::{multi_numerov::faer_backed::FaerRatioNumerov, propagator::MultiStepRule}, observables::s_matrix::HasSMatrix, potentials::{dispersion_potential::Dispersion, gaussian_coupling::GaussianCoupling, multi_coupling::MultiCoupling, multi_diag_potential::Diagonal, pair_potential::PairPotential, potential::Potential, potential_factory::create_lj}, utility::AngularSpin};
+use scattering_solver::{boundary::{Boundary, Direction}, numerovs::{multi_numerov::dmatrix_backed::DMatrixRatioNumerov, propagator::MultiStepRule}, observables::s_matrix::HasSMatrix, potentials::{dispersion_potential::Dispersion, gaussian_coupling::GaussianCoupling, multi_coupling::MultiCoupling, multi_diag_potential::Diagonal, pair_potential::PairPotential, potential::Potential, potential_factory::create_lj}, utility::AngularSpin};
 
 
 pub struct ManyChannels;
@@ -23,7 +23,7 @@ impl ManyChannels {
         particles
     }
 
-    fn potential() -> impl Potential<Space = Mat<f64>> {
+    fn potential() -> impl Potential<Space = DMatrix<f64>> {
         const N: usize = 50;
 
         let wells = linspace(0.0019, 0.0022, N);
@@ -42,8 +42,8 @@ impl ManyChannels {
             .map(|c| GaussianCoupling::new(Energy(*c, Kelvin), 11.0, 2.0))
             .collect();
 
-        let potential = Diagonal::<Mat<f64>, _>::from_vec(potentials);
-        let coupling = MultiCoupling::<Mat<f64>, _>::new_neighboring(couplings);
+        let potential = Diagonal::<DMatrix<f64>, _>::from_vec(potentials);
+        let coupling = MultiCoupling::<DMatrix<f64>, _>::new_neighboring(couplings);
         PairPotential::new(potential, coupling)
     }
 
@@ -54,10 +54,10 @@ impl ManyChannels {
         let particles = Self::particles();
         let potential = Self::potential();
         
-        let id: Mat<f64> = Mat::identity(potential.size(), potential.size());
+        let id: DMatrix<f64> = DMatrix::identity(potential.size(), potential.size());
         let boundary = Boundary::new(6.5, Direction::Outwards, (1.001 * &id, 1.002 * &id));
 
-        let mut numerov = FaerRatioNumerov::new(&potential, &particles, MultiStepRule::default(), boundary);
+        let mut numerov = DMatrixRatioNumerov::new(&potential, &particles, MultiStepRule::default(), boundary);
         let preparation = start.elapsed();
         numerov.propagate_to(1e3);
         let propagation = start.elapsed() - preparation;
@@ -67,8 +67,8 @@ impl ManyChannels {
 
         let extraction = start.elapsed() - propagation - preparation;
 
-        println!("preparation {:?} us", propagation.as_micros());
-        println!("Propagation time: {:?} μs", propagation.as_micros());
+        println!("preparation {:?} μs", preparation.as_micros());
+        println!("Propagation time: {:?} ms", propagation.as_millis());
         println!("Extraction time: {:?} μs", extraction.as_micros());
         println!("Scattering length: {:.2e} bohr", scattering_length);
     }

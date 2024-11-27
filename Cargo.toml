@@ -8,7 +8,7 @@ num-traits = "0.2.19"
 num = "0.4.3"
 rayon = "1.10.0"
 quantum = { git = "https://github.com/Wleter/quantum.git" }
-faer = { version = "0.19.4", optional = true }
+faer = { version = "0.19.4", optional = true}
 ndarray = { version = "0.16.1", optional = true }
 nalgebra = { version = "0.33.0", optional = true }
 

@@ -2,7 +2,10 @@
 pub mod faer_backed;
 
 // #[cfg(feature = "nalgebra")]
-// pub mod static_backed;
+// pub mod smatrix_backed;
+
+#[cfg(feature = "nalgebra")]
+pub mod dmatrix_backed;
 
 pub struct MultiRatioNumerovStep<T>
 {

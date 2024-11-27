@@ -6,7 +6,7 @@ use crate::{boundary::Boundary, numerovs::{numerov_modifier::{PropagatorModifier
 use super::MultiRatioNumerovStep;
 
 #[derive(Clone)]
-pub struct MultiNumerovDataFaer<'a, P>
+pub struct MultiNumerovDataSMatrix<'a, P, const N: usize>
 where 
     P: Potential<Space = Mat<f64>>
 {
@@ -31,7 +31,7 @@ where
 }
 
 
-pub type FaerRatioNumerov<'a, P> = Numerov<
+pub type DMatrixRatioNumerov<'a, P> = Numerov<
     MultiNumerovDataFaer<'a, P>, 
     MultiStepRule<MultiNumerovDataFaer<'a, P>>, 
     MultiRatioNumerovStep<Mat<f64>>
