@@ -38,7 +38,7 @@ impl<P: Potential<Space = f64>> Potential for MaskedPotential<Mat<f64>, P> {
 }
 
 #[cfg(feature = "faer")]
-impl<P: SubPotential<Space = f64>> SubPotential for MaskedPotential<Mat<f64>, P> {
+impl<P: Potential<Space = f64>> SubPotential for MaskedPotential<Mat<f64>, P> {
     fn value_add(&self, r: f64, value: &mut Mat<f64>) {
         let potential_value = self.potential.value(r);
 
@@ -68,7 +68,7 @@ impl<P: Potential<Space = f64>> Potential for MaskedPotential<Array2<f64>, P> {
 }
 
 #[cfg(feature = "ndarray")]
-impl<P: SubPotential<Space = f64>> SubPotential for MaskedPotential<Array2<f64>, P> {
+impl<P: Potential<Space = f64>> SubPotential for MaskedPotential<Array2<f64>, P> {
     fn value_add(&self, r: f64, value: &mut Array2<f64>) {
         let potential_value = self.potential.value(r);
 
@@ -95,7 +95,7 @@ impl<P: Potential<Space = f64>> Potential for MaskedPotential<DMatrix<f64>, P> {
 }
 
 #[cfg(feature = "nalgebra")]
-impl<P: SubPotential<Space = f64>> SubPotential for MaskedPotential<DMatrix<f64>, P> {
+impl<P: Potential<Space = f64>> SubPotential for MaskedPotential<DMatrix<f64>, P> {
     fn value_add(&self, r: f64, value: &mut DMatrix<f64>) {
         let potential_value = self.potential.value(r);
 
@@ -119,7 +119,7 @@ impl<const N: usize, P: Potential<Space = f64>> Potential for MaskedPotential<SM
 }
 
 #[cfg(feature = "nalgebra")]
-impl<const N: usize, P: SubPotential<Space = f64>> SubPotential for MaskedPotential<SMatrix<f64, N, N>, P> {
+impl<const N: usize, P: Potential<Space = f64>> SubPotential for MaskedPotential<SMatrix<f64, N, N>, P> {
     fn value_add(&self, r: f64, value: &mut Self::Space) {
         let potential_value = self.potential.value(r);
 
