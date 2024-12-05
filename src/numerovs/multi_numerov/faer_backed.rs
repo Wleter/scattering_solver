@@ -1,3 +1,4 @@
+use core::f64;
 use std::{f64::consts::PI, mem::swap};
 
 use faer::{linalg::matmul::matmul, prelude::c64, solvers::SolverCore, unzipped, zipped, Mat, MatMut};
@@ -139,7 +140,7 @@ where
             .expect("Closed entrance channel")
             .0;
 
-        FaerSMatrix::new(s_matrix, momenta, entrance) // todo!
+        FaerSMatrix::new(s_matrix, momenta, entrance)
     }
 }
 
@@ -272,11 +273,13 @@ where
     P: Potential<Space = Mat<f64>>
 {
     fn get_step(&self, data: &MultiNumerovDataFaer<P>) -> f64 {
-        let mut max_g_val = 0.;
-        zipped!(data.current_g_func.as_ref())
-            .for_each(|unzipped!(c)| max_g_val = f64::max(max_g_val, c.read().abs()));
+        let max_g_val = data.current_g_func.diagonal()
+            .column_vector()
+            .iter()
+            .max_by(|a, b| a.partial_cmp(b).unwrap())
+            .unwrap();
 
-        let lambda = 2. * PI / max_g_val.sqrt();
+        let lambda = 2. * PI / max_g_val.abs().sqrt();
 
         f64::clamp(lambda / self.wave_step_ratio, self.min_step, self.max_step)
     }

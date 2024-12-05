@@ -1,9 +1,10 @@
+use core::f64;
 use std::{f64::consts::PI, mem::swap};
 
 use nalgebra::DMatrix;
 use num::complex::Complex64;
 use quantum::{params::particles::Particles, units::{energy_units::Energy, mass_units::Mass, Au}, utility::{asymptotic_bessel_j, asymptotic_bessel_n, bessel_j_ratio, bessel_n_ratio}};
-use crate::{boundary::Boundary, numerovs::{numerov_modifier::{PropagatorModifier, SampleConfig, WaveStorage}, propagator::{MultiStep, MultiStepRule, Numerov, NumerovResult, PropagatorData, StepAction, StepRule}}, observables::s_matrix::nalgebra::NalgebraSMatrix, potentials::{dispersion_potential::Dispersion, potential::{Potential, SimplePotential}, potential_factory::create_centrifugal}, utility::AngularSpin};
+use crate::{boundary::Boundary, numerovs::{numerov_modifier::{PropagatorModifier, SampleConfig, WaveStorage}, propagator::{MultiStep, MultiStepRule, Numerov, NumerovResult, PropagatorData, StepAction, StepRule}}, observables::s_matrix::nalgebra::NalgebraSMatrix, potentials::{dispersion_potential::Dispersion, potential::{Dimension, Potential, SimplePotential}, potential_factory::create_centrifugal}, utility::AngularSpin};
 use super::MultiRatioNumerovStep;
 
 #[derive(Clone)]
@@ -266,11 +267,14 @@ where
     P: Potential<Space = DMatrix<f64>>
 {
     fn get_step(&self, data: &MultiNumerovDataDMatrix<P>) -> f64 {
-        let mut max_g_val = 0.;
-        data.current_g_func.iter()
-            .for_each(|a| max_g_val = f64::max(max_g_val, a.abs()));
+        let mut max_g_val = f64::MIN;
+        for i in 0..data.current_g_func.size() {
+            unsafe {
+                max_g_val = f64::max(max_g_val, *data.current_g_func.get_unchecked((i, i)))
+            }
+        }
 
-        let lambda = 2. * PI / max_g_val.sqrt();
+        let lambda = 2. * PI / max_g_val.abs().sqrt();
 
         f64::clamp(lambda / self.wave_step_ratio, self.min_step, self.max_step)
     }
